@@ -327,6 +327,10 @@ function say(t,cb){
   if(cb){let done=false;u.onend=u.onerror=()=>{if(!done){done=true;cb()}}}
   speechSynthesis.speak(u);
 }
+async function micOK(){
+  try{if(!navigator.mediaDevices?.getUserMedia)return false;
+    const st=await navigator.mediaDevices.getUserMedia({audio:true});st.getTracks().forEach(t=>t.stop());return true}catch(e){return false}
+}
 const dPool=()=>pool().filter(q=>!q.spell);
 function duelSetup(){
   stopTimer();G=null;dClear();D=null;
@@ -342,9 +346,14 @@ function duelSetup(){
   </form><small>${n} questions disponibles avec tes filtres actuels.</small><div class="row" style="justify-content:center"><button class="btn ghost" data-go="home">Retour</button></div></div>`;
   $('#df').addEventListener('click',e=>{const b=e.target.closest('button[type=button]');if(!b)return;
     if(b.dataset.dl){S.dlen=+b.dataset.dl}else if(b.dataset.dv){S.dvoc=b.dataset.dv==='1'}S.dn1=$('#d1').value;S.dn2=$('#d2').value;save();duelSetup()});
-  $('#df').addEventListener('submit',e=>{e.preventDefault();S.dn1=$('#d1').value.trim()||'Joueur 1';S.dn2=$('#d2').value.trim()||'Joueur 2';save();
+  $('#df').addEventListener('submit',async e=>{e.preventDefault();S.dn1=$('#d1').value.trim()||'Joueur 1';S.dn2=$('#d2').value.trim()||'Joueur 2';save();
     const deck=shuffle(dPool()).slice(0,S.dlen||10);if(!deck.length)return;
-    D={p:[{n:S.dn1,s:0},{n:S.dn2,s:0}],deck,i:0,vocal:!!(SR&&S.dvoc!==false)};
+    let vocal=!!(SR&&S.dvoc!==false);
+    if(vocal){const go=$('#df .go');go.disabled=true;go.textContent='Autorisation du micro…';
+      if(!(await micOK())){S.dvoc=false;save();go.disabled=false;go.textContent='Lancer le duel';
+        const m=document.createElement('small');m.style.color='var(--bad)';m.textContent='Micro refusé ou indisponible : le duel se jouera avec les choix A B C D. Appuie de nouveau sur Lancer, ou autorise le micro dans les réglages de Chrome (icône à gauche de l\'adresse).';
+        $('#df').appendChild(m);$('#df [data-dv="1"]').classList.remove('on');$('#df [data-dv="0"]').classList.add('on');return}}
+    D={p:[{n:S.dn1,s:0},{n:S.dn2,s:0}],deck,i:0,vocal};
     say('Duel ! '+S.dn1+' contre '+S.dn2+'. Prêts ?');dStart()});
 }
 function dStart(){
