@@ -58,6 +58,7 @@ function home(){
   <div class="modes">
     <button class="mode rev" data-go="rev"><h2>Révision</h2><p>Ordre aléatoire. Tu dévoiles la réponse et tu dis si tu la savais. Les ratées reviennent.</p><span class="go">Commencer</span></button>
     <button class="mode exa" data-go="exam"><h2>Examen</h2><p>Tu écris ta réponse, on calcule ton pointage comme en vrai match.</p><span class="go">Me tester</span></button>
+    <button class="mode duo" data-go="duel"><h2>Duel 2 joueurs</h2><p>Face à face sur le même téléphone. La question est lue à voix haute, le plus rapide appuie et répond au micro.</p><span class="go">Affronter</span></button>
   </div>
   ${best!=null?`<div class="best">Meilleur examen ici : <b>${best} %</b></div>`:''}`}
   <div class="row">${S.src==='mine'?'<button class="btn gold" data-go="import">Ajouter photos ou documents</button>':''}${installEvt?'<button class="btn ghost" data-install>Installer l\'app</button>':''}</div>`;
@@ -74,6 +75,7 @@ app.addEventListener('click',e=>{
   else if(d.go==='rev')startRev(pool());
   else if(d.go==='exam')startExam();
   else if(d.go==='import')importScreen();
+  else if(d.go==='duel')duelSetup();
   else if(d.go==='home')home();
   else if(d.act&&ACT[d.act])ACT[d.act](b);
 });
@@ -312,5 +314,118 @@ function boot(){
   app.innerHTML=`<div class="splash"><img src="icon-192.webp" alt=""><h1>Génie en herbe</h1></div>`;
   setTimeout(()=>{const sp=$('.splash');if(sp)sp.classList.add('out');setTimeout(()=>P?home():profil(),350)},1900);
 }
+// ---------- duel 2 joueurs ----------
+const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+let D=null,dT=[],rec=null,actx=null;
+const later=(f,ms)=>dT.push(setTimeout(f,ms));
+function dClear(){dT.forEach(clearTimeout);dT=[];if(D)clearInterval(D.iv),clearInterval(D.civ);try{rec&&rec.abort()}catch(e){}rec=null}
+function beep(f=880,d=.15){try{actx=actx||new(window.AudioContext||window.webkitAudioContext)();const o=actx.createOscillator(),g=actx.createGain();o.type='square';o.frequency.value=f;g.gain.value=.07;o.connect(g);g.connect(actx.destination);o.start();o.stop(actx.currentTime+d)}catch(e){}}
+function say(t,cb){
+  if(!('speechSynthesis' in window)){cb&&cb();return}
+  speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(t),vs=speechSynthesis.getVoices();
+  const v=vs.find(v=>/fr[-_]CA/i.test(v.lang))||vs.find(v=>/^fr/i.test(v.lang));if(v)u.voice=v;u.lang='fr-CA';u.rate=1.05;
+  if(cb){let done=false;u.onend=u.onerror=()=>{if(!done){done=true;cb()}}}
+  speechSynthesis.speak(u);
+}
+const dPool=()=>pool().filter(q=>!q.spell);
+function duelSetup(){
+  stopTimer();G=null;dClear();D=null;
+  const n=dPool().length,dl=S.dlen||10,voc=SR&&S.dvoc!==false;
+  app.innerHTML=`<div class="onb"><img src="icon-192.webp" alt=""><h1>Duel 2 joueurs</h1><p>Posez le téléphone à plat entre vous deux.</p>
+  <form id="df" autocomplete="off">
+    <label>Joueur 1 (en bas)<input class="in" id="d1" maxlength="20" value="${esc(S.dn1||P?.nom||'Joueur 1')}"></label>
+    <label>Joueur 2 (en haut)<input class="in" id="d2" maxlength="20" value="${esc(S.dn2||'Joueur 2')}"></label>
+    <label>Nombre de questions</label><div class="seg" style="margin-top:6px">${[10,15,20].map(l=>`<button type="button" data-dl="${l}" class="${dl===l?'on':''}">${l}</button>`).join('')}</div>
+    <label>Réponse</label><div class="seg" style="margin-top:6px"><button type="button" data-dv="1" class="${voc?'on':''}" ${SR?'':'disabled'}>Au micro</button><button type="button" data-dv="0" class="${voc?'':'on'}">Choix A B C D</button></div>
+    ${SR?'':'<small>Ce navigateur ne permet pas la reconnaissance vocale : réponses par choix.</small>'}
+    <button class="btn pri go" type="submit">Lancer le duel</button>
+  </form><small>${n} questions disponibles avec tes filtres actuels.</small><div class="row" style="justify-content:center"><button class="btn ghost" data-go="home">Retour</button></div></div>`;
+  $('#df').addEventListener('click',e=>{const b=e.target.closest('button[type=button]');if(!b)return;
+    if(b.dataset.dl){S.dlen=+b.dataset.dl}else if(b.dataset.dv){S.dvoc=b.dataset.dv==='1'}S.dn1=$('#d1').value;S.dn2=$('#d2').value;save();duelSetup()});
+  $('#df').addEventListener('submit',e=>{e.preventDefault();S.dn1=$('#d1').value.trim()||'Joueur 1';S.dn2=$('#d2').value.trim()||'Joueur 2';save();
+    const deck=shuffle(dPool()).slice(0,S.dlen||10);if(!deck.length)return;
+    D={p:[{n:S.dn1,s:0},{n:S.dn2,s:0}],deck,i:0,vocal:!!(SR&&S.dvoc!==false)};
+    say('Duel ! '+S.dn1+' contre '+S.dn2+'. Prêts ?');dStart()});
+}
+function dStart(){
+  dClear();const q=D.deck[D.i];
+  Object.assign(D,{ci:0,phase:'read',who:null,tried:[false,false],heard:'',ok:null,ch:choicesFor(q),deadline:Infinity,total:1});
+  dRender();later(()=>dRead(),D.i?300:1700);
+  D.iv=setInterval(dTick,200);
+}
+const dText=q=>q.clues?q.clues[D.ci]:q.q;
+function dRead(){
+  const q=D.deck[D.i];if(D.phase!=='read')return;
+  const t=dText(q);D.deadline=Date.now()+t.length*75+12000;D.total=D.deadline-Date.now();
+  say(t,()=>{if(D&&D.phase==='read'){D.deadline=Date.now()+(q.clues&&D.ci<q.clues.length-1?6000:12000);D.total=D.deadline-Date.now()}});
+}
+function dTick(){
+  if(!D)return;const left=D.deadline-Date.now(),bar=$('#dbar');
+  if(bar)bar.style.width=(isFinite(left)?Math.max(0,left/D.total*100):100)+'%';
+  if(left<=0){const q=D.deck[D.i];
+    if(D.phase==='read'){if(q.clues&&D.ci<q.clues.length-1&&!D.tried.some(Boolean)){D.ci++;dRender();dRead()}else dReveal()}
+    else if(D.phase==='ans')dJudge(D.who,[])}
+}
+function dBuzz(k){
+  if(!D||D.phase!=='read'||D.tried[k])return;
+  speechSynthesis.cancel();beep();navigator.vibrate&&navigator.vibrate(90);
+  Object.assign(D,{phase:'ans',who:k,heard:''});D.tried[k]=true;D.deadline=Date.now()+(D.vocal?8000:10000);D.total=D.deadline-Date.now();
+  dRender();if(D.vocal)dListen(k);
+}
+function dListen(k){
+  try{rec=new SR()}catch(e){D.vocal=false;dRender();return}
+  rec.lang='fr-CA';rec.interimResults=true;rec.maxAlternatives=5;rec.continuous=false;let got=false;
+  rec.onresult=e=>{const r=e.results[e.results.length-1],alts=[...r].map(a=>a.transcript);D.heard=alts[0];const h=$('#heard'+k);if(h)h.textContent='« '+D.heard+' »';
+    if(r.isFinal){got=true;dJudge(k,alts)}};
+  rec.onerror=e=>{if(e.error==='not-allowed'||e.error==='service-not-allowed'){D.vocal=false;D.deadline=Date.now()+10000;D.total=10000;dRender()}};
+  rec.onend=()=>{if(!got&&D&&D.phase==='ans'&&D.who===k&&D.vocal)dJudge(k,D.heard?[D.heard]:[])};
+  try{rec.start()}catch(e){D.vocal=false;dRender()}
+}
+function dJudge(k,vals){
+  if(!D||D.phase!=='ans'||D.who!==k)return;
+  try{rec&&rec.abort()}catch(e){}rec=null;
+  const q=D.deck[D.i],ans=answerOf(q),ok=vals.some(v=>v===ans||isRight(q,v));
+  D.heard=vals[0]||'';
+  if(ok){const pts=ptsOf(q,D.ci);D.p[k].s+=pts;Object.assign(D,{phase:'show',ok:k,gain:pts});beep(1320,.12);later(()=>beep(1760,.15),130);dRender();say('Bonne réponse ! '+ans);later(dNext,3200);return}
+  beep(200,.35);navigator.vibrate&&navigator.vibrate([60,60,60]);
+  if(!D.tried[1-k]){Object.assign(D,{phase:'read',who:null,miss:k});D.deadline=Date.now()+8000;D.total=8000;dRender();say('Non. Réplique pour '+D.p[1-k].n)}
+  else dReveal();
+}
+function dReveal(){
+  if(!D)return;Object.assign(D,{phase:'show',ok:null});dRender();const a=answerOf(D.deck[D.i]);say('La réponse était : '+a);later(dNext,3600);
+}
+function dNext(){if(!D)return;dClear();D.i++;D.i>=D.deck.length?dEnd():dStart()}
+function dHalf(k){
+  const q=D.deck[D.i],me=D.p[k],ans=answerOf(q);let z;
+  if(D.phase==='ans'&&D.who===k){
+    z=D.vocal?`<div class="state talk"><div class="mic"></div><div>Parle maintenant !</div><div class="heard" id="heard${k}">${D.heard?'« '+esc(D.heard)+' »':''}</div><button class="btn ghost" data-act="dchoix">Utiliser les choix</button></div>`
+      :`<div class="choices">${D.ch.map((c,i)=>`<button class="choice" data-act="dpick" data-k="${k}" data-i="${i}"><b>${'ABCD'[i]}</b><span>${esc(c)}</span></button>`).join('')}</div>`;
+  }else if(D.phase==='ans')z=`<div class="state">${esc(D.p[D.who].n)} répond…</div>`;
+  else if(D.phase==='show')z=`<div class="state ${D.ok===k?'win':D.ok===null?'':'lose'}"><small>${D.ok===k?'+'+D.gain+' points !':D.ok===null?'Personne':esc(D.p[D.ok].n)+' a eu le point'}</small><div class="big2">${esc(ans)}</div>${D.heard&&D.ok!==k&&D.who===k?`<small>Tu as dit « ${esc(D.heard)} »</small>`:''}</div>`;
+  else if(D.tried[k])z=`<div class="state lose">Raté ! ${D.miss===k?esc(D.heard?'« '+D.heard+' »':''):''}<small>Réplique pour ${esc(D.p[1-k].n)}</small></div>`;
+  else z=`<button class="buzz" data-buzz="${k}">${D.tried[1-k]?'RÉPLIQUE !':'BUZZ'}</button>`;
+  return `<div class="half p${k} ${k===1?'flip':''}"><div class="hd"><span>${esc(me.n)}</span><b>${me.s}</b></div>
+  <div class="dq">${q.clues?`<em>${q.pts[D.ci]} pts · indice ${D.ci+1}/${q.clues.length}</em> `:''}${esc(dText(q))}</div>${z}</div>`;
+}
+function dRender(){
+  if(!D)return;
+  app.innerHTML=`<div class="duel">${dHalf(1)}<div class="mid"><button class="x" data-act="dquit" aria-label="Quitter">✕</button><span>Question ${D.i+1}/${D.deck.length}</span><div class="bar"><i id="dbar" style="width:100%"></i></div><button class="x" data-act="dsay" aria-label="Relire">↻</button></div>${dHalf(0)}</div>`;
+}
+function dEnd(){
+  dClear();const [a,b]=D.p,w=a.s===b.s?null:(a.s>b.s?a:b);
+  say(w?'Victoire de '+w.n+' !':'Égalité !');
+  app.innerHTML=`<div class="card end"><img src="icon-192.webp" alt=""><div class="big">${w?esc(w.n):'Égalité'}</div><p class="count">${w?'remporte le duel':'Match nul, revanche ?'}</p>
+  <div class="stats"><div><b>${a.s}</b>${esc(a.n)}</div><div><b>${b.s}</b>${esc(b.n)}</div></div>
+  <div class="row" style="justify-content:center"><button class="btn pri" data-go="duel">Revanche</button><button class="btn" data-act="dhome">Accueil</button></div></div>`;
+}
+app.addEventListener('pointerdown',e=>{const b=e.target.closest('[data-buzz]');if(b){e.preventDefault();dBuzz(+b.dataset.buzz)}});
+Object.assign(ACT,{
+  dpick(b){const k=+b.dataset.k;dJudge(k,[D.ch[+b.dataset.i]])},
+  dchoix(){try{rec&&rec.abort()}catch(e){}D.vocal=false;D.deadline=Date.now()+10000;D.total=10000;dRender()},
+  dquit(){dClear();speechSynthesis.cancel();D=null;home()},
+  dhome(){D=null;home()},
+  dsay(){if(D&&D.phase==='read')dRead()},
+});
+
 boot();
 })();
