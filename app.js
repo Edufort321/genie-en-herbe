@@ -38,6 +38,9 @@ let G=null,timerId=null;
 const stopTimer=()=>{clearInterval(timerId);timerId=null};
 
 // ---------- accueil ----------
+const openF=new Set(store.get('geh-open',[]));
+const fold=(id,title,sum,body)=>`<details class="fold" data-fold="${id}" ${openF.has(id)?'open':''}><summary><span>${title}</span><em>${esc(sum)}</em></summary><div class="fb">${body}</div></details>`;
+app.addEventListener('toggle',e=>{const f=e.target.dataset?.fold;if(!f)return;e.target.open?openF.add(f):openF.delete(f);store.set('geh-open',[...openF])},true);
 function home(){
   stopTimer();G=null;
   const cats=catsOf(S.src),off=S.cats[S.src]||[],n=pool().length,best=store.get('geh-best',{})[S.src];
@@ -45,17 +48,15 @@ function home(){
   app.innerHTML=`
   <div class="hero"><img src="icon-192.webp" alt="Logo Génie en herbe"><div><h1>Génie en herbe</h1><p>Révise, teste-toi, deviens imbattable.</p></div></div>
   <div class="tabs">${tab('sheet','Feuille 2020-21',SHEET.length)}${tab('divers','Divers sec 1-5',DIVERS.length)}${tab('mine','Mes documents',mine().length)}</div>
-  ${S.src==='divers'?`<div class="lbl">Niveau</div><div class="chips">${[1,2,3,4,5].map(l=>`<button class="chip gold ${S.lv.includes(l)?'on':''}" data-lv="${l}">Sec ${l}</button>`).join('')}</div>`:''}
+  ${S.src==='divers'?fold('lv','Niveau',S.lv.length===5?'Sec 1 à 5':S.lv.map(l=>'Sec '+l).join(', '),`<div class="chips">${[1,2,3,4,5].map(l=>`<button class="chip gold ${S.lv.includes(l)?'on':''}" data-lv="${l}">Sec ${l}</button>`).join('')}</div>`):''}
   ${S.src==='mine'&&!mine().length?`<div class="drop" id="drop0"><h3>Aucun document pour l'instant</h3><p>Glisse des photos de feuilles de questions, ou un fichier .txt / .csv / .json.</p><div class="row" style="justify-content:center"><button class="btn gold" data-go="import">Ajouter des documents</button></div></div>`:`
-  <div class="lbl">Catégories</div><div class="chips"><button class="chip ${off.length?'':'on'}" data-all>Toutes</button>${cats.map(c=>`<button class="chip ${off.includes(c)?'':'on'}" data-cat="${esc(c)}">${esc(c)}</button>`).join('')}</div>
+  ${fold('cat','Catégories',off.length?`${cats.length-off.length} sur ${cats.length}`:'Toutes',`<div class="chips"><button class="chip ${off.length?'':'on'}" data-all>Toutes</button>${cats.map(c=>`<button class="chip ${off.includes(c)?'':'on'}" data-cat="${esc(c)}">${esc(c)}</button>`).join('')}</div>`)}
+  ${fold('opt','Réglages examen',`${S.len||'Toutes les'} questions · chrono ${S.timer?'oui':'non'}`,`<div class="opts"><div class="seg">${[10,20,30,0].map(l=>`<button data-len="${l}" class="${S.len===l?'on':''}">${l||'Tout'}</button>`).join('')}</div>
+    <button class="tog" data-timer><span class="sw ${S.timer?'on':''}"></span>Chrono</button></div>`)}
   <div class="count"><b>${n}</b> question${n>1?'s':''} sélectionnée${n>1?'s':''}</div>
   <div class="modes">
     <button class="mode rev" data-go="rev"><h2>Révision</h2><p>Ordre aléatoire. Tu dévoiles la réponse et tu dis si tu la savais. Les ratées reviennent.</p><span class="go">Commencer</span></button>
     <button class="mode exa" data-go="exam"><h2>Examen</h2><p>Tu écris ta réponse, on calcule ton pointage comme en vrai match.</p><span class="go">Me tester</span></button>
-  </div>
-  <div class="opts"><span class="lbl" style="margin:0">Examen</span>
-    <div class="seg">${[10,20,30,0].map(l=>`<button data-len="${l}" class="${S.len===l?'on':''}">${l||'Tout'}</button>`).join('')}</div>
-    <button class="tog" data-timer><span class="sw ${S.timer?'on':''}"></span>Chrono</button>
   </div>
   ${best!=null?`<div class="best">Meilleur examen ici : <b>${best} %</b></div>`:''}`}
   <div class="row"><button class="btn" data-go="import">Ajouter des documents</button>${installEvt?'<button class="btn ghost" data-install>Installer l\'app</button>':''}</div>`;

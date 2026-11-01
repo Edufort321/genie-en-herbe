@@ -109,7 +109,33 @@ textarea.in{font-size:14px;min-height:240px;font-family:ui-monospace,Menlo,monos
 .drop h3{font-size:19px}.drop p{color:var(--mut);font-size:13px;margin-top:6px;line-height:1.5}
 .note{color:var(--mut);font-size:13px;line-height:1.5;margin-top:10px}
 #dragcover{position:fixed;inset:0;background:rgba(7,11,36,.85);display:none;align-items:center;justify-content:center;z-index:9;font-size:22px;font-weight:700;color:var(--gold);border:3px dashed var(--gold)}
-@media (max-width:520px){.modes{grid-template-columns:1fr}.hero h1{font-size:28px}.hero img{width:70px;height:70px}.q{font-size:19px}}
+.fold{margin-top:10px;border:1px solid var(--line);border-radius:16px;background:rgba(10,16,50,.55);overflow:hidden}
+.fold summary{list-style:none;display:flex;align-items:center;gap:10px;padding:13px 14px;cursor:pointer;font-weight:600;font-size:15px}
+.fold summary::-webkit-details-marker{display:none}
+.fold summary em{margin-left:auto;font-style:normal;font-weight:500;font-size:13px;color:var(--gold);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:55%}
+.fold summary::after{content:"";width:8px;height:8px;border-right:2px solid var(--mut);border-bottom:2px solid var(--mut);transform:rotate(45deg);margin:-4px 2px 0 0;transition:transform .2s;flex:none}
+.fold[open] summary::after{transform:rotate(-135deg);margin-top:4px}
+.fold .fb{padding:0 14px 14px}
+.fold .opts{margin-top:0}
+@media (max-width:520px){
+#app{padding:10px 10px 24px}
+.hero{gap:12px;margin:2px 0 12px}.hero img{width:52px;height:52px;border-radius:15px}.hero h1{font-size:24px}.hero p{display:none}
+.tabs{padding:4px;margin-bottom:4px}.tabs button{padding:8px 4px;font-size:13px}.tabs small{font-size:10px}
+.chip{padding:6px 10px;font-size:12px}
+.count{margin-top:10px}
+.modes{grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}
+.mode{padding:16px 14px;border-radius:18px}.mode h2{font-size:19px}.mode p{display:none}.mode .go{margin-top:10px;font-size:13px;padding:7px 12px}
+.row{margin-top:12px}.btn{padding:11px 14px;font-size:14px}
+.top{margin-bottom:8px;gap:8px}.top .x{width:36px;height:36px}
+.card{padding:16px 14px;border-radius:20px;min-height:calc(100dvh - 80px);display:flex;flex-direction:column}
+.q{font-size:18px;margin-top:12px}.clue{font-size:15px;padding:10px 12px}
+.ans{margin-top:12px;padding:12px}.ans div{font-size:20px}
+input.in{margin-top:12px;font-size:17px;padding:13px 14px}
+.acts{margin-top:auto;padding-top:14px;position:sticky;bottom:0;background:linear-gradient(transparent,rgba(13,20,64,.95) 30%);padding-bottom:max(4px,env(safe-area-inset-bottom))}
+.acts .btn{min-width:0;padding:14px 10px}
+.keys{display:none}
+.end{min-height:0;display:block}.big{font-size:52px}.end img{width:80px}
+}
 </style>
 </head>
 <body>
