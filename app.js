@@ -369,7 +369,7 @@ function dTick(){
 function dBuzz(k){
   if(!D||D.phase!=='read'||D.tried[k])return;
   speechSynthesis.cancel();if(!D.vocal)beep();navigator.vibrate&&navigator.vibrate(90);
-  Object.assign(D,{phase:'ans',who:k,heard:'',alts:[]});D.tried[k]=true;D.deadline=Date.now()+(D.vocal?10000:10000);D.total=D.deadline-Date.now();
+  Object.assign(D,{phase:'ans',who:k,heard:'',alts:[],lock:Date.now()+600});D.tried[k]=true;D.deadline=Date.now()+(D.vocal?10000:10000);D.total=D.deadline-Date.now();
   dRender();if(D.vocal)dListen(k);
 }
 function lev(a,b){const m=[...Array(b.length+1).keys()];for(let i=1;i<=a.length;i++){let p=m[0];m[0]=i;for(let j=1;j<=b.length;j++){const t=m[j];m[j]=Math.min(m[j]+1,m[j-1]+1,p+(a[i-1]===b[j-1]?0:1));p=t}}return m[b.length]}
@@ -446,9 +446,9 @@ function dEnd(){
 }
 app.addEventListener('pointerdown',e=>{const b=e.target.closest('[data-buzz]');if(b){e.preventDefault();dBuzz(+b.dataset.buzz)}});
 Object.assign(ACT,{
-  dpick(b){const k=+b.dataset.k;dJudge(k,[D.ch[+b.dataset.i]])},
-  dchoix(){try{rec&&rec.abort()}catch(e){}D.vocal=false;D.deadline=Date.now()+10000;D.total=10000;dRender()},
-  dmic(b){dListen(+b.dataset.k)},
+  dpick(b){if(Date.now()<(D?.lock||0))return;const k=+b.dataset.k;dJudge(k,[D.ch[+b.dataset.i]])},
+  dchoix(b){if(b&&Date.now()<(D?.lock||0))return;try{rec&&rec.abort()}catch(e){}D.vocal=false;D.deadline=Date.now()+10000;D.total=10000;dRender()},
+  dmic(b){if(Date.now()<(D?.lock||0))return;dListen(+b.dataset.k)},
   dquit(){dClear();speechSynthesis.cancel();D=null;home()},
   dhome(){D=null;home()},
   dsay(){if(D&&D.phase==='read')dRead()},

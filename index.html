@@ -152,8 +152,9 @@ textarea.in{font-size:14px;min-height:240px;font-family:ui-monospace,Menlo,monos
 .big2{font-size:24px;font-weight:800;color:#fff}
 .heard{color:var(--cyan);font-size:16px;min-height:20px}
 .mic{width:58px;height:58px;border-radius:50%;background:var(--bad);box-shadow:0 0 0 0 rgba(255,93,122,.6);animation:pulse 1.1s infinite}
+@keyframes fadein{0%,60%{opacity:.3;pointer-events:none}100%{opacity:1}}
 @keyframes pulse{70%{box-shadow:0 0 0 22px rgba(255,93,122,0)}100%{box-shadow:0 0 0 0 rgba(255,93,122,0)}}
-.half .choices{flex:1;margin-top:0;align-content:center;gap:7px}.half .choice{padding:10px 12px;font-size:15px}
+.half .choices{animation:fadein .5s;flex:1;margin-top:0;align-content:center;gap:7px}.half .choice{padding:10px 12px;font-size:15px}
 .mid{display:flex;align-items:center;gap:10px;padding:6px 10px;background:rgba(0,0,0,.4);border-block:1px solid var(--line);font-size:13px;color:var(--mut);white-space:nowrap}
 .mid .x{width:34px;height:34px;border-radius:10px;background:rgba(30,42,110,.8);border:1px solid var(--line);font-size:16px;flex:none}
 .onb .seg{display:inline-flex}.onb .seg button:disabled{opacity:.35}
