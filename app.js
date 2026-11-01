@@ -368,23 +368,49 @@ function dTick(){
 }
 function dBuzz(k){
   if(!D||D.phase!=='read'||D.tried[k])return;
-  speechSynthesis.cancel();beep();navigator.vibrate&&navigator.vibrate(90);
-  Object.assign(D,{phase:'ans',who:k,heard:''});D.tried[k]=true;D.deadline=Date.now()+(D.vocal?8000:10000);D.total=D.deadline-Date.now();
+  speechSynthesis.cancel();if(!D.vocal)beep();navigator.vibrate&&navigator.vibrate(90);
+  Object.assign(D,{phase:'ans',who:k,heard:'',alts:[]});D.tried[k]=true;D.deadline=Date.now()+(D.vocal?10000:10000);D.total=D.deadline-Date.now();
   dRender();if(D.vocal)dListen(k);
 }
-function dListen(k){
-  try{rec=new SR()}catch(e){D.vocal=false;dRender();return}
-  rec.lang='fr-CA';rec.interimResults=true;rec.maxAlternatives=5;rec.continuous=false;let got=false;
-  rec.onresult=e=>{const r=e.results[e.results.length-1],alts=[...r].map(a=>a.transcript);D.heard=alts[0];const h=$('#heard'+k);if(h)h.textContent='« '+D.heard+' »';
-    if(r.isFinal){got=true;dJudge(k,alts)}};
-  rec.onerror=e=>{if(e.error==='not-allowed'||e.error==='service-not-allowed'){D.vocal=false;D.deadline=Date.now()+10000;D.total=10000;dRender()}};
-  rec.onend=()=>{if(!got&&D&&D.phase==='ans'&&D.who===k&&D.vocal)dJudge(k,D.heard?[D.heard]:[])};
-  try{rec.start()}catch(e){D.vocal=false;dRender()}
+function lev(a,b){const m=[...Array(b.length+1).keys()];for(let i=1;i<=a.length;i++){let p=m[0];m[0]=i;for(let j=1;j<=b.length;j++){const t=m[j];m[j]=Math.min(m[j]+1,m[j-1]+1,p+(a[i-1]===b[j-1]?0:1));p=t}}return m[b.length]}
+function voiceRight(q,v){
+  if(isRight(q,v))return true;
+  const n=norm(v),ws=n.split(' ');
+  const near=k=>{k=norm(k);if(k.length<5)return n.includes(k);const tol=k.length>=8?2:1;
+    if(lev(n.replace(/ /g,''),k.replace(/ /g,''))<=tol)return true;
+    const kw=k.split(' ').length;for(let i=0;i+kw<=ws.length;i++)if(lev(ws.slice(i,i+kw).join(' '),k)<=tol)return true;return false};
+  // tolérance aux erreurs de transcription : un mot proche (1 lettre d'écart, 2 pour les mots longs)
+  return (q.k||autoKeys(q.a)).some(alt=>alt.split('&').every(near));
+}
+function dListen(k,lang){
+  try{rec&&rec.abort()}catch(e){}
+  let r;try{r=new SR()}catch(e){D.vocal=false;dRender();return}
+  rec=r;r.lang=lang||'fr-CA';r.interimResults=true;r.maxAlternatives=5;r.continuous=true;
+  const st=t=>{const h=$('#mst'+k);if(h)h.textContent=t};
+  D.alts=D.alts||[];
+  r.onaudiostart=()=>st('Micro ouvert, parle !');
+  r.onspeechstart=()=>st('J\'écoute…');
+  r.onresult=e=>{
+    for(let i=e.resultIndex;i<e.results.length;i++){const res=e.results[i],alts=[...res].map(a=>a.transcript.trim()).filter(Boolean);
+      if(!alts.length)continue;D.heard=alts[0];const h=$('#heard'+k);if(h)h.textContent='« '+D.heard+' »';
+      if(alts.some(v=>voiceRight(D.deck[D.i],v))){dJudge(k,alts);return}
+      if(res.isFinal)D.alts.push(...alts)}
+  };
+  r.onerror=e=>{
+    if(e.error==='not-allowed'||e.error==='service-not-allowed'){st('Micro refusé : on passe aux choix');later(()=>ACT.dchoix(),900);return}
+    if(e.error==='language-not-supported'&&r.lang!=='fr-FR'){dListen(k,'fr-FR');return}
+    if(e.error==='network'){st('Pas d\'internet pour la voix : on passe aux choix');later(()=>ACT.dchoix(),1200);return}
+    st(e.error==='no-speech'?'Je n\'entends rien… parle plus fort':'Micro : '+e.error);
+  };
+  r.onend=()=>{ // relance tant qu'il reste du temps (Android coupe souvent l'écoute)
+    if(rec===r&&D&&D.phase==='ans'&&D.who===k&&D.vocal&&D.deadline-Date.now()>800)later(()=>{if(rec===r&&D&&D.phase==='ans')dListen(k,r.lang)},150);
+  };
+  try{r.start()}catch(e){st('Micro indisponible');}
 }
 function dJudge(k,vals){
   if(!D||D.phase!=='ans'||D.who!==k)return;
   try{rec&&rec.abort()}catch(e){}rec=null;
-  const q=D.deck[D.i],ans=answerOf(q),ok=vals.some(v=>v===ans||isRight(q,v));
+  const q=D.deck[D.i],ans=answerOf(q);if(!vals.length&&D.alts&&D.alts.length)vals=D.alts;const ok=vals.some(v=>v===ans||voiceRight(q,v));
   D.heard=vals[0]||'';
   if(ok){const pts=ptsOf(q,D.ci);D.p[k].s+=pts;Object.assign(D,{phase:'show',ok:k,gain:pts});beep(1320,.12);later(()=>beep(1760,.15),130);dRender();say('Bonne réponse ! '+ans);later(dNext,3200);return}
   beep(200,.35);navigator.vibrate&&navigator.vibrate([60,60,60]);
@@ -398,7 +424,7 @@ function dNext(){if(!D)return;dClear();D.i++;D.i>=D.deck.length?dEnd():dStart()}
 function dHalf(k){
   const q=D.deck[D.i],me=D.p[k],ans=answerOf(q);let z;
   if(D.phase==='ans'&&D.who===k){
-    z=D.vocal?`<div class="state talk"><div class="mic"></div><div>Parle maintenant !</div><div class="heard" id="heard${k}">${D.heard?'« '+esc(D.heard)+' »':''}</div><button class="btn ghost" data-act="dchoix">Utiliser les choix</button></div>`
+    z=D.vocal?`<div class="state talk"><div class="mic"></div><div id="mst${k}">Parle maintenant !</div><div class="heard" id="heard${k}">${D.heard?'« '+esc(D.heard)+' »':''}</div><div class="row" style="margin-top:4px;justify-content:center"><button class="btn ghost" data-act="dmic" data-k="${k}">Relancer le micro</button><button class="btn ghost" data-act="dchoix">Choix A B C D</button></div></div>`
       :`<div class="choices">${D.ch.map((c,i)=>`<button class="choice" data-act="dpick" data-k="${k}" data-i="${i}"><b>${'ABCD'[i]}</b><span>${esc(c)}</span></button>`).join('')}</div>`;
   }else if(D.phase==='ans')z=`<div class="state">${esc(D.p[D.who].n)} répond…</div>`;
   else if(D.phase==='show')z=`<div class="state ${D.ok===k?'win':D.ok===null?'':'lose'}"><small>${D.ok===k?'+'+D.gain+' points !':D.ok===null?'Personne':esc(D.p[D.ok].n)+' a eu le point'}</small><div class="big2">${esc(ans)}</div>${D.heard&&D.ok!==k&&D.who===k?`<small>Tu as dit « ${esc(D.heard)} »</small>`:''}</div>`;
@@ -422,6 +448,7 @@ app.addEventListener('pointerdown',e=>{const b=e.target.closest('[data-buzz]');i
 Object.assign(ACT,{
   dpick(b){const k=+b.dataset.k;dJudge(k,[D.ch[+b.dataset.i]])},
   dchoix(){try{rec&&rec.abort()}catch(e){}D.vocal=false;D.deadline=Date.now()+10000;D.total=10000;dRender()},
+  dmic(b){dListen(+b.dataset.k)},
   dquit(){dClear();speechSynthesis.cancel();D=null;home()},
   dhome(){D=null;home()},
   dsay(){if(D&&D.phase==='read')dRead()},
