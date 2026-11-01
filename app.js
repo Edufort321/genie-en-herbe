@@ -479,7 +479,7 @@ const myId=QS.get('pid')||store.get('geh-id',null)||(()=>{const id=Math.random()
 const myNom=()=>QS.get('pn')||P?.nom||'Joueur';
 let NET=null,ROOM=null,PEERS={},O=null,INV=null,OUT=null,sbc=null;
 const CODECH='ABCDEFGHJKMNPQRSTUVWXYZ23456789',newCode=()=>Array.from({length:5},()=>CODECH[Math.random()*CODECH.length|0]).join('');
-function loadSB(){return window.supabase?Promise.resolve():new Promise((res,rej)=>{const s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js';s.onload=res;s.onerror=()=>rej(new Error('net'));document.head.appendChild(s)})}
+function loadSB(){return window.supabase?Promise.resolve():new Promise((res,rej)=>{const s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js';s.onload=res;s.onerror=()=>rej(new Error('librairie Supabase non chargée'));document.head.appendChild(s)})}
 async function netJoin(code,onPeers,onMsg){
   const me=()=>({id:myId,nom:myNom(),ecole:P?.ecole||'',busy:!!O});
   if(CFG.supabaseUrl&&CFG.supabaseKey){
@@ -487,7 +487,7 @@ async function netJoin(code,onPeers,onMsg){
     const ch=sbc.channel('geh-'+code,{config:{presence:{key:myId},broadcast:{self:false}}});
     ch.on('presence',{event:'sync'},()=>{const out={};Object.values(ch.presenceState()).forEach(a=>a.forEach(m=>{if(m.id!==myId)out[m.id]=m}));onPeers(out)});
     ch.on('broadcast',{event:'m'},({payload})=>onMsg(payload));
-    await new Promise((res,rej)=>{const to=setTimeout(()=>rej(new Error('timeout')),10000);ch.subscribe(st=>{if(st==='SUBSCRIBED'){clearTimeout(to);ch.track(me());res()}else if(st==='CHANNEL_ERROR'||st==='TIMED_OUT'){clearTimeout(to);rej(new Error(st))}})});
+    await new Promise((res,rej)=>{const to=setTimeout(()=>rej(new Error('délai dépassé')),12000);ch.subscribe((st,err)=>{if(st==='SUBSCRIBED'){clearTimeout(to);ch.track(me());res()}else if(st==='CHANNEL_ERROR'||st==='TIMED_OUT'||st==='CLOSED'){clearTimeout(to);try{sbc.removeChannel(ch)}catch(e){}rej(new Error(st+(err?.message?' : '+err.message:'')))}})});
     return {send:m=>ch.send({type:'broadcast',event:'m',payload:{...m,from:myId}}),update:()=>ch.track(me()),leave:()=>sbc.removeChannel(ch)};
   }
   // mode test sans serveur : onglets du même appareil
@@ -519,7 +519,7 @@ async function enterRoom(code){
   code=code.toUpperCase().replace(/[^A-Z0-9]/g,'');if(code.length<4){oStatus('Le code doit avoir 5 caractères.');return}
   oStatus('Connexion…');
   try{NET=await netJoin(code,p=>{PEERS=p;if(O&&!O.over&&!PEERS[O.opp])oAbort((O.oppNom||'Ton adversaire')+' a quitté.');else roomRender(false)},onNet)}
-  catch(e){oStatus('Connexion impossible. Vérifie internet et réessaie.');return}
+  catch(e){oStatus('Connexion impossible ('+(e?.message||e)+'). Vérifie internet et réessaie.');return}
   ROOM=code;S.room=code;save();roomRender(true);
 }
 function leaveRoom(){try{NET&&NET.leave()}catch(e){}NET=null;ROOM=null;PEERS={};INV=null;OUT=null}
