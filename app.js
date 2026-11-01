@@ -483,7 +483,7 @@ function loadSB(){return window.supabase?Promise.resolve():new Promise((res,rej)
 async function netJoin(code,onPeers,onMsg){
   const me=()=>({id:myId,nom:myNom(),ecole:P?.ecole||'',busy:!!O});
   if(CFG.supabaseUrl&&CFG.supabaseKey){
-    await loadSB();sbc=sbc||window.supabase.createClient(CFG.supabaseUrl,CFG.supabaseKey,{auth:{persistSession:false}});
+    await loadSB();sbc=sbc||window.supabase.createClient(new URL(CFG.supabaseUrl).origin,CFG.supabaseKey,{auth:{persistSession:false}});
     const ch=sbc.channel('geh-'+code,{config:{presence:{key:myId},broadcast:{self:false}}});
     ch.on('presence',{event:'sync'},()=>{const out={};Object.values(ch.presenceState()).forEach(a=>a.forEach(m=>{if(m.id!==myId)out[m.id]=m}));onPeers(out)});
     ch.on('broadcast',{event:'m'},({payload})=>onMsg(payload));
