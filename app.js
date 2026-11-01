@@ -24,8 +24,9 @@ const blank=q=>esc(q.s).replace(new RegExp(q.spell,'i'),'<b style="color:var(--g
 
 // ---------- banques ----------
 const mine=()=>store.get('geh-mine',[]);
-const SRC={sheet:()=>SHEET,divers:()=>DIVERS,mine};
-let S=store.get('geh-prefs',{src:'sheet',cats:{},lv:[1,2,3,4,5],len:20,timer:true});
+const SRC={mine:()=>[...SHEET,...mine()],divers:()=>DIVERS};
+let S=store.get('geh-prefs',{src:'mine',cats:{},lv:[1,2,3,4,5],len:20,timer:true});
+if(!SRC[S.src])S.src='mine';
 const save=()=>store.set('geh-prefs',S);
 const catsOf=src=>[...new Set(SRC[src]().map(q=>q.c))];
 function pool(){
@@ -47,11 +48,11 @@ function home(){
   const tab=(k,t,c)=>`<button data-src="${k}" class="${S.src===k?'on':''}">${t}<small>${c} questions</small></button>`;
   app.innerHTML=`
   <div class="hero"><img src="icon-192.webp" alt="Logo Génie en herbe"><div><h1>Génie en herbe</h1><p>${P?['Salut '+esc(P.nom),esc(P.ecole)].filter(Boolean).join(' · '):'Révise, teste-toi, deviens imbattable.'}</p></div>${P?`<button class="me" data-act="profil" aria-label="Mon profil">${esc(P.nom.trim()[0]||'?').toUpperCase()}</button>`:''}</div>
-  <div class="tabs">${tab('sheet','Feuille 2020-21',SHEET.length)}${tab('divers','Divers sec 1-5',DIVERS.length)}${tab('mine','Mes documents',mine().length)}</div>
+  <div class="tabs">${tab('mine','Mes questions',SHEET.length+mine().length)}${tab('divers','Divers',DIVERS.length)}</div>
   ${S.src==='divers'?fold('lv','Niveau',S.lv.length===5?'Sec 1 à 5':S.lv.map(l=>'Sec '+l).join(', '),`<div class="chips">${[1,2,3,4,5].map(l=>`<button class="chip gold ${S.lv.includes(l)?'on':''}" data-lv="${l}">Sec ${l}</button>`).join('')}</div>`):''}
-  ${S.src==='mine'&&!mine().length?`<div class="drop" id="drop0"><h3>Aucun document pour l'instant</h3><p>Glisse des photos de feuilles de questions, ou un fichier .txt / .csv / .json.</p><div class="row" style="justify-content:center"><button class="btn gold" data-go="import">Ajouter des documents</button></div></div>`:`
+  ${false?`<div class="drop" id="drop0"><h3>Aucun document pour l'instant</h3><p>Glisse des photos de feuilles de questions, ou un fichier .txt / .csv / .json.</p><div class="row" style="justify-content:center"><button class="btn gold" data-go="import">Ajouter des documents</button></div></div>`:`
   ${fold('cat','Catégories',off.length?`${cats.length-off.length} sur ${cats.length}`:'Toutes',`<div class="chips"><button class="chip ${off.length?'':'on'}" data-all>Toutes</button>${cats.map(c=>`<button class="chip ${off.includes(c)?'':'on'}" data-cat="${esc(c)}">${esc(c)}</button>`).join('')}</div>`)}
-  ${fold('opt','Réglages examen',`${S.len||'Toutes les'} questions · chrono ${S.timer?'oui':'non'}`,`<div class="opts"><div class="seg">${[10,20,30,0].map(l=>`<button data-len="${l}" class="${S.len===l?'on':''}">${l||'Tout'}</button>`).join('')}</div>
+  ${fold('opt','Réglages',`${qcm()?'Choix multiples':'Réponse écrite'} · ${S.len||'Toutes les'} q.`,`<div class="opts"><div class="seg"><button data-act="qcm" class="${qcm()?'on':''}">Choix multiples</button><button data-act="qcm" class="${qcm()?'':'on'}">Réponse écrite</button></div></div><div class="lbl">Examen</div><div class="opts"><div class="seg">${[10,20,30,0].map(l=>`<button data-len="${l}" class="${S.len===l?'on':''}">${l||'Tout'}</button>`).join('')}</div>
     <button class="tog" data-timer><span class="sw ${S.timer?'on':''}"></span>Chrono</button></div>`)}
   <div class="count"><b>${n}</b> question${n>1?'s':''} sélectionnée${n>1?'s':''}</div>
   <div class="modes">
@@ -59,7 +60,7 @@ function home(){
     <button class="mode exa" data-go="exam"><h2>Examen</h2><p>Tu écris ta réponse, on calcule ton pointage comme en vrai match.</p><span class="go">Me tester</span></button>
   </div>
   ${best!=null?`<div class="best">Meilleur examen ici : <b>${best} %</b></div>`:''}`}
-  <div class="row"><button class="btn" data-go="import">Ajouter des documents</button>${installEvt?'<button class="btn ghost" data-install>Installer l\'app</button>':''}</div>`;
+  <div class="row">${S.src==='mine'?'<button class="btn gold" data-go="import">Ajouter photos ou documents</button>':''}${installEvt?'<button class="btn ghost" data-install>Installer l\'app</button>':''}</div>`;
 }
 app.addEventListener('click',e=>{
   const b=e.target.closest('button');if(!b)return;const d=b.dataset;
@@ -94,21 +95,50 @@ function startRev(list){
   G={mode:'rev',deck:shuffle(list),i:0,ci:0,rev:false,first:new Map(),total:list.length};
   rev();
 }
+// ---------- choix de réponses ----------
+const qcm=()=>S.qcm!==false;
+const NUMW=['Deux','Trois','Quatre','Cinq','Six','Sept','Huit','Neuf','Dix','Onze','Douze'];
+const GRAM=['Nom','Verbe','Adjectif','Adverbe','Déterminant','Pronom','Préposition','Conjonction'];
+const wc=t=>String(t).split(/\s+/).length;
+function misspell(w){const v=new Set(),R=[[/ss/,'s'],[/([^s])s(?!s)/,'$1ss'],[/é/,'è'],[/é/,'e'],[/ph/,'f'],[/ie$/,'i'],[/ées$/,'és'],[/ées$/,'ée'],[/nn/,'n'],[/n(?!n)/,'nn'],[/i/,'y'],[/g/,'gu'],[/a/,'e']];
+  for(const[a,b]of R)if(a.test(w))v.add(w.replace(a,b));v.delete(w);return shuffle([...v]).slice(0,3)}
+function choicesFor(q){
+  const ans=answerOf(q);let d=[];
+  if(q.d)d=shuffle(q.d).slice(0,3);
+  else if(q.spell)d=misspell(q.spell);
+  else if(NUMW.includes(ans)){const i=NUMW.indexOf(ans);d=shuffle([i-2,i-1,i+1,i+2].filter(x=>x>=0&&x<NUMW.length).map(x=>NUMW[x])).slice(0,3)}
+  else if(GRAM.includes(ans))d=shuffle(GRAM.filter(x=>x!==ans)).slice(0,3);
+  else if(/^\d+$/.test(norm(ans))){const n=+norm(ans),st=n>1000?[-10,10,-100,25]:n>100?[-10,10,20,-20,100]:[-2,-1,1,2,n];d=shuffle([...new Set(st.map(x=>n+x).filter(x=>x>0&&x!==n))]).slice(0,3).map(String)}
+  if(d.length<3){
+    const all=[...SRC[S.src](),...SHEET,...DIVERS],seen=new Set([norm(ans)]),pick=list=>shuffle(list).sort((x,y)=>Math.abs(wc(answerOf(x))-wc(ans))-Math.abs(wc(answerOf(y))-wc(ans))).forEach(x=>{const t=answerOf(x),n=norm(t);if(d.length<3&&!seen.has(n)&&!x.spell&&!isRight(q,t)){seen.add(n);d.push(t)}});
+    d.forEach(t=>seen.add(norm(t)));
+    pick(all.filter(x=>x.c===q.c&&x!==q));pick(all.filter(x=>x!==q));
+  }
+  return shuffle([ans,...d.slice(0,3)]);
+}
+function chBlock(q,picked,lock){
+  if(G.chFor!==q){G.ch=choicesFor(q);G.chFor=q}
+  const ans=answerOf(q);
+  return `<div class="choices">${G.ch.map((c,i)=>`<button class="choice ${lock?(c===ans?'ok':c===picked?'ko':'dim'):''}" data-act="pick" data-i="${i}" ${lock?'disabled':''}><b>${'ABCD'[i]}</b><span>${esc(c)}</span></button>`).join('')}</div>`;
+}
 function rev(){
   const q=G.deck[G.i];if(!q)return revEnd();
-  const more=q.clues&&G.ci<q.clues.length-1&&!G.rev;
+  const more=q.clues&&G.ci<q.clues.length-1&&!G.rev,mc=qcm();
   app.innerHTML=topBar(G.i,G.deck.length)+`<div class="card">${qBlock(q,G.ci,G.rev)}
-  ${G.rev?`<div class="ans"><small>Réponse</small><div>${esc(answerOf(q))}</div></div>
-   <div class="acts"><button class="btn bad" data-act="again">À revoir</button><button class="btn good" data-act="knew">Je savais</button></div>`
-  :`<div class="acts">${more?'<button class="btn" data-act="clue">Indice suivant</button>':''}<button class="btn pri" data-act="show">Voir la réponse</button></div>`}
-  </div><div class="keys">Espace : réponse · 1 : à revoir · 2 : je savais</div>`;
+  ${mc?chBlock(q,G.picked,G.rev):''}
+  ${G.rev?(mc?`<div class="ans ${G.picked===answerOf(q)?'ok':'ko'}"><small>${G.picked===answerOf(q)?'Bravo !':'La bonne réponse'}</small><div>${esc(answerOf(q))}</div></div>
+   <div class="acts"><button class="btn pri" data-act="mcnext">Suivante</button></div>`
+   :`<div class="ans"><small>Réponse</small><div>${esc(answerOf(q))}</div></div>
+   <div class="acts"><button class="btn bad" data-act="again">À revoir</button><button class="btn good" data-act="knew">Je savais</button></div>`)
+  :`<div class="acts">${more?'<button class="btn" data-act="clue">Indice suivant</button>':''}${mc?'<button class="btn ghost" data-act="show">Je ne sais pas</button>':'<button class="btn pri" data-act="show">Voir la réponse</button>'}</div>`}
+  </div><div class="keys">${mc?'1 à 4 : choisir · Entrée : suivante':'Espace : réponse · 1 : à revoir · 2 : je savais'}</div>`;
   if(q.spell&&!G.rev)setTimeout(()=>speak(q),250);
 }
 function revNext(knew){
   const q=G.deck[G.i];
   if(!G.first.has(q))G.first.set(q,knew);
   if(!knew)G.deck.splice(Math.min(G.i+4,G.deck.length),0,q);
-  G.i++;G.ci=0;G.rev=false;rev();
+  G.i++;G.ci=0;G.rev=false;G.picked=null;G.chFor=null;rev();
 }
 function revEnd(){
   const ok=[...G.first.values()].filter(Boolean).length,t=G.first.size;
@@ -128,23 +158,24 @@ function exam(){
   const q=G.deck[G.i];if(!q)return examEnd();
   const r=G.res[G.i],more=q.clues&&G.ci<q.clues.length-1&&!G.done;
   app.innerHTML=topBar(G.i,G.deck.length,`<span class="score">${G.score} pts</span>`)+`<div class="card">${qBlock(q,G.ci,G.done)}
+  ${G.done&&r.mc?chBlock(q,r.val,true):''}
   ${G.done?`<div class="ans ${r.ok?'ok':'ko'}"><small>${r.ok?'Bonne réponse · +'+r.pts+' pts':(r.val?'Pas tout à fait':'Temps écoulé ou passé')}</small><div>${esc(answerOf(q))}</div>${r.val&&!r.ok?`<div class="v">Ta réponse : ${esc(r.val)}</div>`:''}</div>
-   <div class="acts">${!r.ok&&r.val?'<button class="btn good" data-act="override">J\'avais raison</button>':''}<button class="btn pri" data-act="next">${G.i+1<G.deck.length?'Question suivante':'Voir mon résultat'}</button></div>`
-  :`<input class="in" id="ans" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Ta réponse…">
+   <div class="acts">${!r.ok&&r.val&&!r.mc?'<button class="btn good" data-act="override">J\'avais raison</button>':''}<button class="btn pri" data-act="next">${G.i+1<G.deck.length?'Question suivante':'Voir mon résultat'}</button></div>`
+  :`${qcm()?chBlock(q,null,false):'<input class="in" id="ans" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Ta réponse…">'}
    ${S.timer?'<div class="timer" id="tm"><i style="width:100%"></i></div>':''}
-   <div class="acts">${more?`<button class="btn" data-act="clue">Indice suivant (${ptsOf(q,G.ci+1)} pts)</button>`:''}<button class="btn ghost" data-act="skip">Passer</button><button class="btn pri" data-act="submit">Valider</button></div>`}
+   <div class="acts">${more?`<button class="btn" data-act="clue">Indice suivant (${ptsOf(q,G.ci+1)} pts)</button>`:''}<button class="btn ghost" data-act="skip">Passer</button>${qcm()?'':'<button class="btn pri" data-act="submit">Valider</button>'}</div>`}
   </div><div class="keys">Entrée : valider / continuer</div>`;
   if(!G.done){
-    const inp=$('#ans');setTimeout(()=>inp.focus(),50);
+    const inp=$('#ans');if(inp)setTimeout(()=>inp.focus(),50);
     if(q.spell)setTimeout(()=>speak(q),250);
     if(S.timer){const tot=q.clues?20:(q.spell?30:25);let t=G.tleft??tot;G.tleft=t;const tm=$('#tm');
       const draw=()=>{tm.firstChild.style.width=(t/tot*100)+'%';tm.classList.toggle('low',t<=5)};draw();
-      timerId=setInterval(()=>{t--;G.tleft=t;draw();if(t<=0){stopTimer();submit($('#ans').value)}},1000)}
+      timerId=setInterval(()=>{t--;G.tleft=t;draw();if(t<=0){stopTimer();submit($('#ans')?.value||'')}},1000)}
   }
 }
 function submit(val){
-  stopTimer();const q=G.deck[G.i],ok=isRight(q,val),pts=ok?ptsOf(q,G.ci):0;
-  G.score+=pts;G.res[G.i]={q,val:val.trim(),ok,pts};G.done=true;G.tleft=null;exam();
+  stopTimer();const q=G.deck[G.i],mc=qcm(),ok=mc?val===answerOf(q):isRight(q,val),pts=ok?ptsOf(q,G.ci):0;
+  G.score+=pts;G.res[G.i]={q,val:val.trim(),ok,pts,mc};G.done=true;G.tleft=null;exam();
 }
 function examEnd(){
   stopTimer();
@@ -160,18 +191,23 @@ function examEnd(){
 
 const ACT={
   say(){speak(G.deck[G.i])},
-  show(){G.rev=true;rev()},
+  show(){G.rev=true;G.picked=null;rev()},
   clue(){G.ci++;G.mode==='rev'?rev():(G.tleft=null,exam())},
   knew(){revNext(true)},again(){revNext(false)},
   revagain(){startRev(G.last)},
   submit(){submit($('#ans').value)},
   skip(){submit('')},
-  next(){G.i++;G.ci=0;G.done=false;exam()},
+  next(){G.i++;G.ci=0;G.done=false;G.chFor=null;exam()},
+  pick(b){const v=G.ch[+b.dataset.i];if(G.mode==='rev'){G.picked=v;G.rev=true;rev()}else if(!G.done)submit(v)},
+  mcnext(){revNext(G.picked===answerOf(G.deck[G.i]))},
+  qcm(){S.qcm=!qcm();save();home()},
   override(){const r=G.res[G.i];r.ok=true;r.pts=ptsOf(r.q,G.ci);G.score+=r.pts;exam()},
   revmiss(){startRev(G.missed)},
 };
 document.addEventListener('keydown',e=>{
   if(!G)return;
+  if(qcm()&&/^[1-4]$/.test(e.key)&&!(G.mode==='rev'?G.rev:G.done)){const b=document.querySelectorAll('.choice')[+e.key-1];if(b)ACT.pick(b);return}
+  if(G.mode==='rev'&&qcm()){if(e.key==='Enter'&&G.rev)ACT.mcnext();return}
   if(G.mode==='rev'){if(e.target.tagName==='TEXTAREA')return;
     if(e.key===' '&&!G.rev){e.preventDefault();ACT.show()}else if(G.rev&&e.key==='1')ACT.again();else if(G.rev&&(e.key==='2'||e.key==='Enter'))ACT.knew()}
   else if(G.mode==='exam'&&e.key==='Enter'){e.preventDefault();G.done?ACT.next():ACT.submit()}
@@ -187,8 +223,8 @@ function importScreen(){
   <div id="stat" class="note"></div>
   <div id="ed" style="${pending?'':'display:none'}"><div class="lbl">Vérifie avant d'ajouter (question | réponse)</div>
   <textarea class="in" id="txt">${esc(pending)}</textarea>
-  <div class="row"><input class="in" id="cat" style="margin:0;flex:1;font-size:15px" placeholder="Catégorie (ex. Feuille 2021-22)" value="Mes documents"><button class="btn pri" data-act="doimport">Ajouter</button></div></div>
-  <div class="note">Mes documents : <b style="color:var(--gold)">${m.length}</b> questions enregistrées sur cet appareil.</div>
+  <div class="row"><input class="in" id="cat" style="margin:0;flex:1;font-size:15px" placeholder="Catégorie (ex. Feuille 2021-22)" value="Feuille importée"><button class="btn pri" data-act="doimport">Ajouter</button></div></div>
+  <div class="note">Questions importées de tes photos et documents : <b style="color:var(--gold)">${m.length}</b> questions enregistrées sur cet appareil.</div>
   ${m.length?`<div class="row"><button class="btn" data-act="export">Exporter (.json)</button><button class="btn bad" data-act="wipe">Tout effacer</button></div>`:''}`;
   const dz=$('#drop');
   ['dragenter','dragover'].forEach(t=>dz.addEventListener(t,e=>{e.preventDefault();dz.classList.add('hov')}));
@@ -232,7 +268,7 @@ async function handleFiles(files){
 }
 Object.assign(ACT,{
   doimport(){
-    const cat=($('#cat').value||'Mes documents').trim();
+    const cat=($('#cat').value||'Feuille importée').trim();
     const add=$('#txt').value.split('\n').map(l=>l.split('|')).filter(p=>p.length>=2&&p[0].trim()&&p[1].trim()).map(p=>({c:cat,q:p[0].trim(),a:p.slice(1).join('|').trim(),k:autoKeys(p.slice(1).join('|'))}));
     if(!add.length){$('#stat').textContent='Aucune ligne au format « question | réponse ».';return}
     store.set('geh-mine',[...mine(),...add]);pending='';S.src='mine';save();
