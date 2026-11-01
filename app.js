@@ -349,7 +349,7 @@ function duelSetup(){
 }
 function dStart(){
   dClear();const q=D.deck[D.i];
-  Object.assign(D,{ci:0,phase:'read',who:null,tried:[false,false],heard:'',ok:null,ch:choicesFor(q),deadline:Infinity,total:1});
+  Object.assign(D,{ci:0,phase:'read',who:null,bad:[],tried:[false,false],heard:'',ok:null,ch:choicesFor(q),deadline:Infinity,total:1});
   dRender();later(()=>dRead(),D.i?300:1700);
   D.iv=setInterval(dTick,200);
 }
@@ -429,6 +429,7 @@ function dHalf(k){
   }else if(D.phase==='ans')z=`<div class="state">${esc(D.p[D.who].n)} répond…</div>`;
   else if(D.phase==='show')z=`<div class="state ${D.ok===k?'win':D.ok===null?'':'lose'}"><small>${D.ok===k?'+'+D.gain+' points !':D.ok===null?'Personne':esc(D.p[D.ok].n)+' a eu le point'}</small><div class="big2">${esc(ans)}</div>${D.heard&&D.ok!==k&&D.who===k?`<small>Tu as dit « ${esc(D.heard)} »</small>`:''}</div>`;
   else if(D.tried[k])z=`<div class="state lose">Raté ! ${D.miss===k?esc(D.heard?'« '+D.heard+' »':''):''}<small>Réplique pour ${esc(D.p[1-k].n)}</small></div>`;
+  else if(!D.vocal)z=`<div class="fast">${D.tried[1-k]?'<div class="rep">RÉPLIQUE !</div>':''}${D.ch.map((c,i)=>`<button class="fbtn" data-dfast="${k}" data-i="${i}" ${D.bad.includes(i)?'disabled':''}><b>${'ABCD'[i]}</b><span>${esc(c)}</span></button>`).join('')}</div>`;
   else z=`<button class="buzz" data-buzz="${k}">${D.tried[1-k]?'RÉPLIQUE !':'BUZZ'}</button>`;
   return `<div class="half p${k} ${k===1?'flip':''}"><div class="hd"><span>${esc(me.n)}</span><b>${me.s}</b></div>
   <div class="dq">${q.clues?`<em>${q.pts[D.ci]} pts · indice ${D.ci+1}/${q.clues.length}</em> `:''}${esc(dText(q))}</div>${z}</div>`;
@@ -444,7 +445,14 @@ function dEnd(){
   <div class="stats"><div><b>${a.s}</b>${esc(a.n)}</div><div><b>${b.s}</b>${esc(b.n)}</div></div>
   <div class="row" style="justify-content:center"><button class="btn pri" data-go="duel">Revanche</button><button class="btn" data-act="dhome">Accueil</button></div></div>`;
 }
-app.addEventListener('pointerdown',e=>{const b=e.target.closest('[data-buzz]');if(b){e.preventDefault();dBuzz(+b.dataset.buzz)}});
+function dFast(k,i){
+  if(!D||D.phase!=='read'||D.tried[k]||D.bad.includes(i))return;
+  speechSynthesis.cancel();navigator.vibrate&&navigator.vibrate(60);
+  Object.assign(D,{phase:'ans',who:k,heard:''});D.tried[k]=true;
+  const v=D.ch[i];if(v!==answerOf(D.deck[D.i]))D.bad.push(i);dJudge(k,[v]);
+}
+app.addEventListener('pointerdown',e=>{const f=e.target.closest('[data-dfast]');if(f&&!f.disabled){e.preventDefault();dFast(+f.dataset.dfast,+f.dataset.i);return}
+  const b=e.target.closest('[data-buzz]');if(b){e.preventDefault();dBuzz(+b.dataset.buzz)}});
 Object.assign(ACT,{
   dpick(b){if(Date.now()<(D?.lock||0))return;const k=+b.dataset.k;dJudge(k,[D.ch[+b.dataset.i]])},
   dchoix(b){if(b&&Date.now()<(D?.lock||0))return;try{rec&&rec.abort()}catch(e){}D.vocal=false;D.deadline=Date.now()+10000;D.total=10000;dRender()},
