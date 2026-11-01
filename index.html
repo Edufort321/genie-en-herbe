@@ -132,7 +132,7 @@ textarea.in{font-size:14px;min-height:240px;font-family:ui-monospace,Menlo,monos
 .choice.ok{border-color:var(--good);background:rgba(62,224,143,.16)}.choice.ok b{background:var(--good);color:#04210f}
 .choice.ko{border-color:var(--bad);background:rgba(255,93,122,.14)}.choice.ko b{background:var(--bad);color:#fff}
 .choice.dim{opacity:.45}.choice:disabled{cursor:default}
-.mode.duo{grid-column:1/-1}.mode.duo::after{background:var(--gold);opacity:.35}.mode.duo .go{background:var(--gold);color:#1a1300}
+.mode.onl::after{background:var(--good);opacity:.35}.mode.onl .go{background:var(--good);color:#04210f}.mode.duo::after{background:var(--gold);opacity:.35}.mode.duo .go{background:var(--gold);color:#1a1300}
 .duel{position:fixed;inset:0;z-index:4;display:grid;grid-template-rows:1fr auto 1fr;background:var(--bg);background-image:radial-gradient(600px 400px at 50% 100%,rgba(47,140,255,.25),transparent 70%),radial-gradient(600px 400px at 50% 0%,rgba(139,92,246,.28),transparent 70%)}
 .half{display:flex;flex-direction:column;gap:8px;padding:12px 12px max(12px,env(safe-area-inset-bottom));min-height:0}
 .half.flip{transform:rotate(180deg);padding-bottom:12px}
@@ -165,6 +165,21 @@ textarea.in{font-size:14px;min-height:240px;font-family:ui-monospace,Menlo,monos
 .mid{display:flex;align-items:center;gap:10px;padding:6px 10px;background:rgba(0,0,0,.4);border-block:1px solid var(--line);font-size:13px;color:var(--mut);white-space:nowrap}
 .mid .x{width:34px;height:34px;border-radius:10px;background:rgba(30,42,110,.8);border:1px solid var(--line);font-size:16px;flex:none}
 .onb .seg{display:inline-flex}.onb .seg button:disabled{opacity:.35}
+.codein{margin:0!important;flex:1;text-transform:uppercase;letter-spacing:6px;text-align:center;font-weight:800;font-size:22px!important}
+.codebox{text-align:center;padding:16px;border-radius:22px;background:var(--card);border:1px solid var(--line)}
+.codebox small{color:var(--mut);font-size:12px;text-transform:uppercase;letter-spacing:1.5px}
+.code{font-size:46px;font-weight:800;letter-spacing:10px;color:var(--gold);margin:4px 0 10px;padding-left:10px}
+.peer{display:flex;align-items:center;gap:12px;padding:12px 14px;margin-top:8px;border-radius:16px;background:rgba(10,16,50,.6);border:1px solid var(--line)}
+.peer .pn{flex:1;min-width:0}.peer .pn b{display:block}.peer .pn small{color:var(--mut);font-size:12px}
+.peer .btn{padding:9px 14px}
+.dot{width:11px;height:11px;border-radius:50%;background:var(--good);box-shadow:0 0 10px var(--good);flex:none}.dot.busy{background:var(--gold);box-shadow:0 0 10px var(--gold)}
+.ov{position:fixed;inset:0;z-index:8;background:rgba(5,8,28,.8);display:flex;align-items:center;justify-content:center;padding:20px;animation:pop .25s}
+.ovc{max-width:360px;width:100%;text-align:center;padding:26px 20px;border-radius:26px;background:#10183f;border:2px solid var(--gold);box-shadow:0 0 60px rgba(255,194,26,.25)}
+.ovc img{width:72px;border-radius:20px}.ovc h2{margin-top:10px;font-size:22px}.ovc p{color:var(--mut);margin-top:4px}
+.oplay{display:flex;flex-direction:column;min-height:calc(100dvh - 30px)}
+.vs{display:flex;align-items:center;justify-content:space-around;padding:10px;margin-bottom:10px;border-radius:18px;background:rgba(10,16,50,.6);border:1px solid var(--line)}
+.vs div{text-align:center}.vs small{display:block;color:var(--mut);font-size:12px}.vs b{font-size:28px;color:var(--gold)}.vs span{font-weight:800;color:var(--mut)}
+.ocard{flex:1;display:flex;flex-direction:column}.ocard .fast,.ocard .state{margin-top:14px}
 .fold{margin-top:10px;border:1px solid var(--line);border-radius:16px;background:rgba(10,16,50,.55);overflow:hidden}
 .fold summary{list-style:none;display:flex;align-items:center;gap:10px;padding:13px 14px;cursor:pointer;font-weight:600;font-size:15px}
 .fold summary::-webkit-details-marker{display:none}
@@ -197,6 +212,7 @@ input.in{margin-top:12px;font-size:17px;padding:13px 14px}
 <body>
 <div id="app"></div>
 <div id="dragcover">Dépose tes documents ici</div>
+<script src="config.js"></script>
 <script src="data.js"></script>
 <script src="app.js"></script>
 </body>
