@@ -109,6 +109,22 @@ textarea.in{font-size:14px;min-height:240px;font-family:ui-monospace,Menlo,monos
 .drop h3{font-size:19px}.drop p{color:var(--mut);font-size:13px;margin-top:6px;line-height:1.5}
 .note{color:var(--mut);font-size:13px;line-height:1.5;margin-top:10px}
 #dragcover{position:fixed;inset:0;background:rgba(7,11,36,.85);display:none;align-items:center;justify-content:center;z-index:9;font-size:22px;font-weight:700;color:var(--gold);border:3px dashed var(--gold)}
+.splash{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:22px;z-index:5;background:var(--bg);background-image:radial-gradient(500px 400px at 50% 40%,rgba(47,140,255,.35),transparent 70%),radial-gradient(400px 300px at 60% 60%,rgba(139,92,246,.3),transparent 70%);transition:opacity .35s}
+.splash.out{opacity:0}
+.splash img{width:150px;height:150px;border-radius:40px;box-shadow:0 0 0 3px rgba(255,194,26,.6),0 0 60px rgba(47,140,255,.6);animation:spin 1.5s cubic-bezier(.6,0,.2,1) both}
+.splash h1{font-size:30px;font-weight:800;background:linear-gradient(90deg,var(--gold),#fff,var(--cyan));-webkit-background-clip:text;background-clip:text;color:transparent;animation:rise .6s .9s both}
+@keyframes spin{0%{transform:rotate(-360deg) scale(.3);opacity:0}70%{opacity:1}100%{transform:rotate(0) scale(1)}}
+@keyframes rise{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+.onb{max-width:420px;margin:0 auto;padding-top:4vh;text-align:center;animation:pop .35s}
+.onb img{width:96px;height:96px;border-radius:26px;box-shadow:0 0 0 2px rgba(255,194,26,.5),0 10px 40px rgba(47,140,255,.45)}
+.onb h1{font-size:30px;font-weight:800;margin-top:14px}
+.onb p{color:var(--mut);margin-top:4px}
+.onb form{text-align:left;margin-top:18px}
+.onb label{display:block;font-size:13px;font-weight:600;color:var(--mut);margin-top:12px;text-transform:uppercase;letter-spacing:1px}
+.onb label .in{margin-top:6px;text-transform:none;letter-spacing:0}
+.onb .go{width:100%;margin-top:22px;font-size:20px;padding:16px}
+.onb small{display:block;color:var(--mut);font-size:12px;margin-top:14px}
+.me{margin-left:auto;width:42px;height:42px;flex:none;border-radius:50%;font-weight:800;font-size:18px;color:#1a1300;background:var(--gold);box-shadow:0 4px 16px rgba(255,194,26,.35)}
 .fold{margin-top:10px;border:1px solid var(--line);border-radius:16px;background:rgba(10,16,50,.55);overflow:hidden}
 .fold summary{list-style:none;display:flex;align-items:center;gap:10px;padding:13px 14px;cursor:pointer;font-weight:600;font-size:15px}
 .fold summary::-webkit-details-marker{display:none}
@@ -119,7 +135,7 @@ textarea.in{font-size:14px;min-height:240px;font-family:ui-monospace,Menlo,monos
 .fold .opts{margin-top:0}
 @media (max-width:520px){
 #app{padding:10px 10px 24px}
-.hero{gap:12px;margin:2px 0 12px}.hero img{width:52px;height:52px;border-radius:15px}.hero h1{font-size:24px}.hero p{display:none}
+.hero{gap:12px;margin:2px 0 12px}.hero img{width:52px;height:52px;border-radius:15px}.hero h1{font-size:24px}.hero p{font-size:13px;margin-top:4px}
 .tabs{padding:4px;margin-bottom:4px}.tabs button{padding:8px 4px;font-size:13px}.tabs small{font-size:10px}
 .chip{padding:6px 10px;font-size:12px}
 .count{margin-top:10px}

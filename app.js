@@ -46,7 +46,7 @@ function home(){
   const cats=catsOf(S.src),off=S.cats[S.src]||[],n=pool().length,best=store.get('geh-best',{})[S.src];
   const tab=(k,t,c)=>`<button data-src="${k}" class="${S.src===k?'on':''}">${t}<small>${c} questions</small></button>`;
   app.innerHTML=`
-  <div class="hero"><img src="icon-192.webp" alt="Logo Génie en herbe"><div><h1>Génie en herbe</h1><p>Révise, teste-toi, deviens imbattable.</p></div></div>
+  <div class="hero"><img src="icon-192.webp" alt="Logo Génie en herbe"><div><h1>Génie en herbe</h1><p>${P?['Salut '+esc(P.nom),esc(P.ecole)].filter(Boolean).join(' · '):'Révise, teste-toi, deviens imbattable.'}</p></div>${P?`<button class="me" data-act="profil" aria-label="Mon profil">${esc(P.nom.trim()[0]||'?').toUpperCase()}</button>`:''}</div>
   <div class="tabs">${tab('sheet','Feuille 2020-21',SHEET.length)}${tab('divers','Divers sec 1-5',DIVERS.length)}${tab('mine','Mes documents',mine().length)}</div>
   ${S.src==='divers'?fold('lv','Niveau',S.lv.length===5?'Sec 1 à 5':S.lv.map(l=>'Sec '+l).join(', '),`<div class="chips">${[1,2,3,4,5].map(l=>`<button class="chip gold ${S.lv.includes(l)?'on':''}" data-lv="${l}">Sec ${l}</button>`).join('')}</div>`):''}
   ${S.src==='mine'&&!mine().length?`<div class="drop" id="drop0"><h3>Aucun document pour l'instant</h3><p>Glisse des photos de feuilles de questions, ou un fichier .txt / .csv / .json.</p><div class="row" style="justify-content:center"><button class="btn gold" data-go="import">Ajouter des documents</button></div></div>`:`
@@ -252,5 +252,29 @@ addEventListener('drop',e=>{e.preventDefault();dc=0;cover.style.display='none';i
 let installEvt=null;
 addEventListener('beforeinstallprompt',e=>{e.preventDefault();installEvt=e;if(!G&&!$('#drop'))home()});
 if('serviceWorker' in navigator)addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
-home();
+// ---------- accueil animé + profil ----------
+let P=store.get('geh-profil',null);
+function profil(){
+  G=null;stopTimer();
+  app.innerHTML=`<div class="onb"><img src="icon-192.webp" alt=""><h1>${P?'Mon profil':'Bienvenue !'}</h1><p>${P?'Modifie tes infos.':'Présente-toi avant de commencer.'}</p>
+  <form id="pf" autocomplete="off">
+    <label>Prénom<input class="in" id="pn" maxlength="30" required value="${esc(P?.nom||'')}" placeholder="Ton prénom"></label>
+    <label>Âge<input class="in" id="pa" type="number" inputmode="numeric" min="8" max="20" value="${esc(P?.age||'')}" placeholder="12"></label>
+    <label>École<input class="in" id="pe" maxlength="60" value="${esc(P?.ecole||'')}" placeholder="Nom de ton école"></label>
+    <button class="btn pri go" id="pgo" type="submit">Go</button>
+  </form><small>Ces infos restent seulement sur ton appareil.</small></div>`;
+  const f=$('#pf'),pn=$('#pn'),chk=()=>$('#pgo').disabled=!pn.value.trim();chk();pn.addEventListener('input',chk);
+  if(!P)setTimeout(()=>pn.focus(),300);
+  f.addEventListener('submit',e=>{e.preventDefault();if(!pn.value.trim())return;
+    const age=parseInt($('#pa').value)||null,first=!P;
+    P={nom:pn.value.trim(),age,ecole:$('#pe').value.trim()};store.set('geh-profil',P);
+    if(first&&age){const lv=Math.min(5,Math.max(1,age-11));S.lv=Array.from({length:lv},(_,i)=>i+1);save()}
+    home()});
+}
+ACT.profil=profil;
+function boot(){
+  app.innerHTML=`<div class="splash"><img src="icon-192.webp" alt=""><h1>Génie en herbe</h1></div>`;
+  setTimeout(()=>{const sp=$('.splash');if(sp)sp.classList.add('out');setTimeout(()=>P?home():profil(),350)},1900);
+}
+boot();
 })();
