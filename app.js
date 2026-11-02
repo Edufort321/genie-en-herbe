@@ -16,11 +16,12 @@ function isRight(q,val){
   const n=' '+norm(val)+' ';
   return (q.k||autoKeys(q.a)).some(k=>k.split('&').every(p=>{p=norm(p);return p.length<=3?n.includes(' '+p+' '):n.includes(p)}));
 }
+const rate=()=>S.rate??1.3;
 function speak(q){
-  if(!('speechSynthesis' in window))return;
+  if(!('speechSynthesis' in window)||!rate())return;
   speechSynthesis.cancel();
   const v=speechSynthesis.getVoices().find(v=>/fr[-_]CA/i.test(v.lang))||speechSynthesis.getVoices().find(v=>/^fr/i.test(v.lang));
-  [q.spell,q.s,q.spell].forEach(t=>{const u=new SpeechSynthesisUtterance(t);u.lang='fr-CA';if(v)u.voice=v;u.rate=1.05;speechSynthesis.speak(u)});
+  [q.spell,q.s,q.spell].forEach(t=>{const u=new SpeechSynthesisUtterance(t);u.lang='fr-CA';if(v)u.voice=v;u.rate=Math.max(.8,rate()*.8);speechSynthesis.speak(u)});
 }
 const blank=q=>esc(q.s).replace(new RegExp(q.spell,'i'),'<b style="color:var(--gold)">_____</b>');
 
@@ -55,7 +56,7 @@ function home(){
   ${S.src==='divers'?fold('lv','Niveau',S.lv.length===5?'Sec 1 à 5':S.lv.map(l=>'Sec '+l).join(', '),`<div class="chips">${[1,2,3,4,5].map(l=>`<button class="chip gold ${S.lv.includes(l)?'on':''}" data-lv="${l}">Sec ${l}</button>`).join('')}</div>`):''}
   ${false?`<div class="drop" id="drop0"><h3>Aucun document pour l'instant</h3><p>Glisse des photos de feuilles de questions, ou un fichier .txt / .csv / .json.</p><div class="row" style="justify-content:center"><button class="btn gold" data-go="import">Ajouter des documents</button></div></div>`:`
   ${fold('cat','Catégories',off.length?`${cats.length-off.length} sur ${cats.length}`:'Toutes',`<div class="chips"><button class="chip ${off.length?'':'on'}" data-all>Toutes</button>${cats.map(c=>`<button class="chip ${off.includes(c)?'':'on'}" data-cat="${esc(c)}">${esc(c)}</button>`).join('')}</div>`)}
-  ${fold('opt','Réglages',`${qcm()?'Choix multiples':'Réponse écrite'} · ${S.len||'Toutes les'} q.`,`<div class="opts"><div class="seg"><button data-act="qcm" class="${qcm()?'on':''}">Choix multiples</button><button data-act="qcm" class="${qcm()?'':'on'}">Réponse écrite</button></div></div><div class="lbl">Examen</div><div class="opts"><div class="seg">${[10,20,30,0].map(l=>`<button data-len="${l}" class="${S.len===l?'on':''}">${l||'Tout'}</button>`).join('')}</div>
+  ${fold('opt','Réglages',`${qcm()?'Choix multiples':'Réponse écrite'} · ${S.len||'Toutes les'} q.`,`<div class="opts"><div class="seg"><button data-act="qcm" class="${qcm()?'on':''}">Choix multiples</button><button data-act="qcm" class="${qcm()?'':'on'}">Réponse écrite</button></div></div><div class="lbl">Lecture à voix haute</div><div class="opts"><div class="seg">${[[0,'Muette'],[1,'Lente'],[1.3,'Normale'],[1.6,'Rapide']].map(([v,t])=>`<button data-act="orate" data-r="${v}" class="${rate()===v?'on':''}">${t}</button>`).join('')}</div></div><div class="lbl">Examen</div><div class="opts"><div class="seg">${[10,20,30,0].map(l=>`<button data-len="${l}" class="${S.len===l?'on':''}">${l||'Tout'}</button>`).join('')}</div>
     <button class="tog" data-timer><span class="sw ${S.timer?'on':''}"></span>Chrono</button></div>`)}
   <div class="count"><b>${n}</b> question${n>1?'s':''} sélectionnée${n>1?'s':''}</div>
   <div class="modes">
@@ -208,6 +209,7 @@ const ACT={
   pick(b){const v=G.ch[+b.dataset.i];if(G.mode==='rev'){G.picked=v;G.rev=true;rev()}else if(!G.done)submit(v)},
   mcnext(){revNext(G.picked===answerOf(G.deck[G.i]))},
   qcm(){S.qcm=!qcm();save();home()},
+  orate(b){S.rate=+b.dataset.r;save();home();if(S.rate)say(['Lecture lente.','Lecture normale.','Lecture rapide.'][[1,1.3,1.6].indexOf(S.rate)])},
   override(){const r=G.res[G.i];r.ok=true;r.pts=ptsOf(r.q,G.ci);G.score+=r.pts;exam()},
   revmiss(){startRev(G.missed)},
 };
@@ -348,9 +350,9 @@ const later=(f,ms)=>dT.push(setTimeout(f,ms));
 function dClear(){dT.forEach(clearTimeout);dT=[];if(D)clearInterval(D.iv),clearInterval(D.civ);try{rec&&rec.abort()}catch(e){}rec=null}
 function beep(f=880,d=.15){try{actx=actx||new(window.AudioContext||window.webkitAudioContext)();const o=actx.createOscillator(),g=actx.createGain();o.type='square';o.frequency.value=f;g.gain.value=.07;o.connect(g);g.connect(actx.destination);o.start();o.stop(actx.currentTime+d)}catch(e){}}
 function say(t,cb){
-  if(!('speechSynthesis' in window)){cb&&cb();return}
+  if(!('speechSynthesis' in window)||!rate()){cb&&setTimeout(cb,Math.min(6000,String(t).length*55));return}
   speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(t),vs=speechSynthesis.getVoices();
-  const v=vs.find(v=>/fr[-_]CA/i.test(v.lang))||vs.find(v=>/^fr/i.test(v.lang));if(v)u.voice=v;u.lang='fr-CA';u.rate=1.3;
+  const v=vs.find(v=>/fr[-_]CA/i.test(v.lang))||vs.find(v=>/^fr/i.test(v.lang));if(v)u.voice=v;u.lang='fr-CA';u.rate=rate();
   if(cb){let done=false;u.onend=u.onerror=()=>{if(!done){done=true;cb()}}}
   speechSynthesis.speak(u);
 }
