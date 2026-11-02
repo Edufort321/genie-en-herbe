@@ -63,7 +63,7 @@ function home(){
     <button class="mode onl" data-go="online"><h2>En ligne</h2><p>Entre dans une salle avec un code, vois qui est là et lance un défi.</p><span class="go">Jouer en ligne</span></button>
   </div>
   ${best!=null?`<div class="best">Meilleur examen ici : <b>${best} %</b></div>`:''}`}
-  <div class="row">${S.src==='mine'?'<button class="btn gold" data-go="import">Ajouter photos ou documents</button>':''}${installEvt?'<button class="btn ghost" data-install>Installer l\'app</button>':''}</div>`;
+  <div class="row">${installEvt?'<button class="btn ghost" data-install>Installer l\'app</button>':''}</div>`;
 }
 app.addEventListener('click',e=>{
   const b=e.target.closest('button');if(!b)return;const d=b.dataset;
@@ -222,7 +222,7 @@ document.addEventListener('keydown',e=>{
 let pending='';
 function importScreen(){
   stopTimer();G=null;const m=mine();
-  app.innerHTML=`<div class="top"><button class="x" data-go="home" aria-label="Retour">✕</button><h2 style="font-size:22px">Ajouter des documents</h2></div>
+  app.innerHTML=`<div class="top"><button class="x" data-go="home" aria-label="Retour">✕</button><h2 style="font-size:22px">Mes questions perso</h2></div>
   <div class="drop" id="drop"><h3>Glisse tes fichiers ici</h3><p>Photos de feuilles (lecture automatique du texte), ou fichiers .txt, .csv, .json.<br>Format texte : une question par ligne, <b>question | réponse</b></p>
   <div class="row" style="justify-content:center"><label class="btn gold" style="cursor:pointer">Choisir des fichiers<input type="file" id="file" multiple accept="image/*,.txt,.csv,.json" hidden></label></div></div>
   <div id="stat" class="note"></div>
@@ -302,8 +302,12 @@ function profil(){
     <label>Prénom<input class="in" id="pn" maxlength="30" required value="${esc(P?.nom||'')}" placeholder="Ton prénom"></label>
     <label>Âge<input class="in" id="pa" type="number" inputmode="numeric" min="8" max="20" value="${esc(P?.age||'')}" placeholder="12"></label>
     <label>École<input class="in" id="pe" maxlength="60" value="${esc(P?.ecole||'')}" placeholder="Nom de ton école"></label>
-    <button class="btn pri go" id="pgo" type="submit">Go</button>
-  </form><small>Ces infos restent seulement sur ton appareil.</small></div>`;
+    <button class="btn pri go" id="pgo" type="submit">${P?'Enregistrer':'Go'}</button>
+  </form><small>Ces infos restent seulement sur ton appareil.</small>
+  ${P?`<div class="lbl" style="margin-top:22px;text-align:left">Mes questions perso</div>
+  <button class="btn" style="width:100%" data-go="import">Mes questions perso (sur ce téléphone)${mine().length?' · '+mine().length:''}</button>
+  <small>Photographie une feuille ou tes notes de classe pour réviser dessus. Elles restent seulement sur ce téléphone.</small>
+  <div class="row" style="justify-content:center"><button class="btn ghost" data-go="home">Retour</button></div>`:''}</div>`;
   const f=$('#pf'),pn=$('#pn'),chk=()=>$('#pgo').disabled=!pn.value.trim();chk();pn.addEventListener('input',chk);
   if(!P)setTimeout(()=>pn.focus(),300);
   f.addEventListener('submit',e=>{e.preventDefault();if(!pn.value.trim())return;
