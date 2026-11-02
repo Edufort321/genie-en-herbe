@@ -7,6 +7,19 @@ const norm=s=>String(s||'').toLowerCase().replace(/œ/g,'oe').replace(/æ/g,'ae'
 const ARTS=/^(le|la|les|l|un|une|des|du|de|d|the|a)\s+/;
 const autoKeys=a=>{let n=norm(a);while(ARTS.test(n))n=n.replace(ARTS,'');return [n||norm(a)]};
 const NAV=20,avSrc=n=>`avatars/a${n}.webp`,avImg=(n,c='av')=>n?`<img class="${c}" src="${avSrc(n)}" alt="">`:'';
+// ---------- maîtrise des questions (stats locales) ----------
+const qid=q=>{const t=String(q.q||(q.clues&&q.clues.join(' '))||q.spell||'');let h=5381;for(let i=0;i<t.length;i++)h=(h*33^t.charCodeAt(i))>>>0;return h.toString(36)};
+let STATS=null;const stats=()=>STATS||(STATS=store.get('geh-stats',{}));
+function record(q,ok){if(!q)return;const st=stats(),id=q.id||qid(q),r=st[id]||(st[id]={ok:0,ko:0,s:0});ok?(r.ok++,r.s++):(r.ko++,r.s=0);r.t=Date.now();store.set('geh-stats',st)}
+const MASTER=3;
+function level(q){const r=stats()[q.id||qid(q)];if(!r)return 'new';if(r.s>=MASTER)return 'acq';if(r.ko>r.ok||r.s===0)return 'weak';return 'prog'}
+function weakScore(q){const r=stats()[q.id||qid(q)];if(!r)return 1;if(r.s>=MASTER)return -10;return r.ko*2-r.ok-r.s*2+3}
+// ordre intelligent : les moins bien réussies d'abord, les acquis à la fin (ou exclus)
+function smartOrder(list){const sh=shuffle(list);if(S.smart===false)return sh;
+  const ord={weak:0,new:1,prog:2,acq:3},s2=sh.sort((a,b)=>ord[level(a)]-ord[level(b)]||weakScore(b)-weakScore(a));
+  if(S.incAcq)return s2;const non=s2.filter(q=>level(q)!=='acq');return non.length?non:s2}
+function counts(L){const c={weak:0,prog:0,acq:0,new:0};L.forEach(q=>c[level(q)]++);return c}
+function mbar(L){const c=counts(L),t=L.length||1;return ['weak','prog','acq','new'].map(k=>`<i class="m-${k}" style="width:${c[k]/t*100}%"></i>`).join('')}
 const pct=(a,b)=>b?Math.round(a/b*100):0;
 const ptsOf=(q,ci=0)=>q.clues?q.pts[Math.min(ci,q.pts.length-1)]:(q.p||10);
 const answerOf=q=>q.spell?q.spell:q.a;
@@ -57,14 +70,18 @@ function home(){
   ${false?`<div class="drop" id="drop0"><h3>Aucun document pour l'instant</h3><p>Glisse des photos de feuilles de questions, ou un fichier .txt / .csv / .json.</p><div class="row" style="justify-content:center"><button class="btn gold" data-go="import">Ajouter des documents</button></div></div>`:`
   ${fold('cat','Catégories',off.length?`${cats.length-off.length} sur ${cats.length}`:'Toutes',`<div class="chips"><button class="chip ${off.length?'':'on'}" data-all>Toutes</button>${cats.map(c=>`<button class="chip ${off.includes(c)?'':'on'}" data-cat="${esc(c)}">${esc(c)}</button>`).join('')}</div>`)}
   ${fold('opt','Réglages',`${qcm()?'Choix multiples':'Réponse écrite'} · ${S.len||'Toutes les'} q.`,`<div class="opts"><div class="seg"><button data-act="qcm" class="${qcm()?'on':''}">Choix multiples</button><button data-act="qcm" class="${qcm()?'':'on'}">Réponse écrite</button></div></div><div class="lbl">Lecture à voix haute</div><div class="opts"><div class="seg">${[[0,'Muette'],[1,'Lente'],[1.3,'Normale'],[1.6,'Rapide']].map(([v,t])=>`<button data-act="orate" data-r="${v}" class="${rate()===v?'on':''}">${t}</button>`).join('')}</div></div><div class="lbl">Examen</div><div class="opts"><div class="seg">${[10,20,30,0].map(l=>`<button data-len="${l}" class="${S.len===l?'on':''}">${l||'Tout'}</button>`).join('')}</div>
-    <button class="tog" data-timer><span class="sw ${S.timer?'on':''}"></span>Chrono</button></div>`)}
+    <button class="tog" data-timer><span class="sw ${S.timer?'on':''}"></span>Chrono</button></div>
+    <div class="lbl">Révision intelligente</div><div class="opts" style="flex-direction:column;align-items:flex-start">
+    <button class="tog" data-act="tsmart"><span class="sw ${S.smart!==false?'on':''}"></span>Les questions les moins réussies d'abord</button>
+    <button class="tog" data-act="tacq"><span class="sw ${S.incAcq?'on':''}"></span>Inclure les questions déjà acquises</button></div>`)}
   <div class="count"><b>${n}</b> question${n>1?'s':''} sélectionnée${n>1?'s':''}</div>
   <div class="modes">
-    <button class="mode rev" data-go="rev"><h2>Révision</h2><p>Ordre aléatoire. Tu dévoiles la réponse et tu dis si tu la savais. Les ratées reviennent.</p><span class="go">Commencer</span></button>
+    <button class="mode rev" data-go="rev"><h2>Révision</h2><p>Les questions les moins réussies d'abord. Les ratées reviennent.</p><span class="go">Commencer</span></button>
     <button class="mode exa" data-go="exam"><h2>Examen</h2><p>Tu écris ta réponse, on calcule ton pointage comme en vrai match.</p><span class="go">Me tester</span></button>
     <button class="mode duo" data-go="duel"><h2>Duel</h2><p>2 joueurs face à face sur le même téléphone.</p><span class="go">Affronter</span></button>
     <button class="mode onl" data-go="online"><h2>En ligne</h2><p>Entre dans une salle avec un code, vois qui est là et lance un défi.</p><span class="go">Jouer en ligne</span></button>
   </div>
+  ${(()=>{const L=pool(),a=L.filter(q=>level(q)==='acq').length,w=L.filter(q=>level(q)==='weak').length;return `<button class="statb" data-act="stats"><span><b>Mes statistiques</b><small>${pct(a,L.length)} % acquis · ${w} à revoir</small></span><span class="mbar">${mbar(L)}</span></button>`})()}
   ${best!=null?`<div class="best">Meilleur examen ici : <b>${best} %</b></div>`:''}`}
   <div class="row">${installEvt?'<button class="btn ghost" data-install>Installer l\'app</button>':''}</div>`;
 }
@@ -100,7 +117,7 @@ const topBar=(i,n,extra='')=>`<div class="top"><button class="x" data-go="home" 
 // ---------- révision ----------
 function startRev(list){
   if(!list.length)return;
-  G={mode:'rev',deck:shuffle(list),i:0,ci:0,rev:false,first:new Map(),total:list.length};
+  G={mode:'rev',deck:smartOrder(list),i:0,ci:0,rev:false,first:new Map(),total:list.length};
   rev();
 }
 // ---------- choix de réponses ----------
@@ -143,7 +160,7 @@ function rev(){
   if(q.spell&&!G.rev)setTimeout(()=>speak(q),250);
 }
 function revNext(knew){
-  const q=G.deck[G.i];
+  const q=G.deck[G.i];record(q,knew);
   if(!G.first.has(q))G.first.set(q,knew);
   if(!knew)G.deck.splice(Math.min(G.i+4,G.deck.length),0,q);
   G.i++;G.ci=0;G.rev=false;G.picked=null;G.chFor=null;rev();
@@ -157,7 +174,7 @@ function revEnd(){
 
 // ---------- examen ----------
 function startExam(list){
-  let d=shuffle(list||pool());if(!list&&S.len)d=d.slice(0,S.len);if(!d.length)return;
+  let d=list?shuffle(list):smartOrder(pool());if(!list&&S.len)d=d.slice(0,S.len);if(!d.length)return;
   G={mode:'exam',deck:d,i:0,ci:0,done:false,score:0,max:d.reduce((s,q)=>s+ptsOf(q,0),0),res:[]};
   exam();
 }
@@ -183,7 +200,7 @@ function exam(){
 }
 function submit(val){
   stopTimer();const q=G.deck[G.i],mc=qcm(),ok=mc?val===answerOf(q):isRight(q,val),pts=ok?ptsOf(q,G.ci):0;
-  G.score+=pts;G.res[G.i]={q,val:val.trim(),ok,pts,mc};G.done=true;G.tleft=null;exam();
+  G.score+=pts;G.res[G.i]={q,val:val.trim(),ok,pts,mc};record(q,ok);G.done=true;G.tleft=null;exam();
 }
 function examEnd(){
   stopTimer();
@@ -197,6 +214,21 @@ function examEnd(){
   G.missed=miss.map(r=>r.q);
 }
 
+function statsScreen(){
+  stopTimer();G=null;const L=pool(),c=counts(L),cats=[...new Set(L.map(q=>q.c))];
+  const hard=L.filter(q=>stats()[qid(q)]&&level(q)!=='acq').sort((a,b)=>weakScore(b)-weakScore(a)).slice(0,15);
+  app.innerHTML=`<div class="top"><button class="x" data-go="home" aria-label="Retour">✕</button><h2 style="font-size:20px">Mes statistiques</h2></div>
+  <div class="codebox"><small>Questions acquises (sélection actuelle)</small><div class="code" style="letter-spacing:2px;padding:0">${pct(c.acq,L.length)} %</div>
+  <div class="mbar big">${mbar(L)}</div>
+  <div class="legend"><span><i class="m-weak"></i>À revoir ${c.weak}</span><span><i class="m-prog"></i>En progrès ${c.prog}</span><span><i class="m-acq"></i>Acquises ${c.acq}</span><span><i class="m-new"></i>Jamais vues ${c.new}</span></div></div>
+  <div class="row"><button class="btn pri" style="flex:1" data-act="revweak" ${c.weak+c.prog?'':'disabled'}>Réviser mes points faibles (${c.weak+c.prog})</button></div>
+  <small style="display:block;color:var(--mut);margin-top:6px">Une question est acquise après ${MASTER} bonnes réponses de suite. Une erreur la remet à revoir.</small>
+  <div class="lbl">Par catégorie (de la moins bonne à la meilleure)</div>
+  ${cats.map(k=>{const Lc=L.filter(q=>q.c===k),cc=counts(Lc);return{k,Lc,cc,r:(cc.acq+cc.prog*.5)/Lc.length-(cc.weak/Lc.length)}}).sort((a,b)=>a.r-b.r).map(({k,Lc,cc})=>`<div class="catrow"><div class="ct"><b>${esc(k)}</b><small>${cc.acq}/${Lc.length} acquises${cc.weak?' · '+cc.weak+' à revoir':''}</small></div><div class="mbar">${mbar(Lc)}</div></div>`).join('')}
+  ${hard.length?`<div class="lbl">Tes questions les plus difficiles</div><ul class="miss">${hard.map(q=>{const r=stats()[qid(q)];return `<li>${esc(q.q||(q.clues?q.clues.at(-1):'Épeler : '+q.s))}<span>${esc(answerOf(q))}</span><i>${r.ko} erreur${r.ko>1?'s':''} · ${r.ok} bonne${r.ok>1?'s':''}</i></li>`}).join('')}</ul>`:'<p class="note">Joue quelques parties : tes questions difficiles apparaîtront ici.</p>'}
+  <div class="row" style="justify-content:center;margin-top:20px"><button class="btn ghost" data-act="statreset">${G?.rz?'Touche encore pour confirmer':'Remettre mes statistiques à zéro'}</button></div>`;
+}
+let rz=0;
 const ACT={
   say(){speak(G.deck[G.i])},
   show(){G.rev=true;G.picked=null;rev()},
@@ -209,6 +241,11 @@ const ACT={
   pick(b){const v=G.ch[+b.dataset.i];if(G.mode==='rev'){G.picked=v;G.rev=true;rev()}else if(!G.done)submit(v)},
   mcnext(){revNext(G.picked===answerOf(G.deck[G.i]))},
   qcm(){S.qcm=!qcm();save();home()},
+  tsmart(){S.smart=S.smart===false;save();home()},
+  tacq(){S.incAcq=!S.incAcq;save();home()},
+  stats(){statsScreen()},
+  revweak(){const L=pool().filter(q=>['weak','prog'].includes(level(q)));if(L.length)startRev(L)},
+  statreset(b){if(Date.now()-rz<4000){STATS={};store.set('geh-stats',{});rz=0;statsScreen()}else{rz=Date.now();b.textContent='Touche encore pour confirmer'}},
   orate(b){S.rate=+b.dataset.r;save();home();if(S.rate)say(['Lecture lente.','Lecture normale.','Lecture rapide.'][[1,1.3,1.6].indexOf(S.rate)])},
   override(){const r=G.res[G.i];r.ok=true;r.pts=ptsOf(r.q,G.ci);G.score+=r.pts;exam()},
   revmiss(){startRev(G.missed)},
@@ -634,7 +671,7 @@ function roomRender(force){
   <div class="lbl" style="display:flex;align-items:center">En ligne maintenant (${list.length})<button class="btn ghost" style="margin-left:auto;padding:4px 10px;font-size:12px" data-act="orefresh">Actualiser</button></div>
   ${list.length?list.map(p=>`<div class="peer">${p.av?avImg(p.av,'pav'):''}<span class="dot ${p.busy?'busy':''}"></span><div class="pn"><b>${esc(p.nom)}${p.ready&&!p.busy?' <span class="rdy">Prêt</span>':''}</b><small>${esc(p.ecole||'')}${p.busy?(p.ecole?' · ':'')+'en partie':''}</small></div><button class="pick ${SEL.has(p.id)?'on':''}" data-act="opick" data-id="${esc(p.id)}" ${p.busy?'disabled':''} aria-label="Choisir">${SEL.has(p.id)?'✓':''}</button></div>`).join('')
    :`<p class="note">Personne d'autre pour l'instant. Donne le code <b style="color:var(--gold)">${ROOM}</b> à tes amis.</p>`}
-  <div class="lbl">Format</div><div class="opts"><div class="seg">${[['classic','Classique'],['blitz','Blitz'],['tourney','Tournoi']].map(([v,t])=>`<button data-act="ofmt" data-f="${v}" class="${(S.ofmt||'classic')===v?'on':''}">${t}</button>`).join('')}</div></div>
+  <div class="lbl">Format</div><div class="opts"><div class="seg">${[['classic','Classique'],['blitz','Blitz'],['tourney','Tournoi'],['review','Révision de groupe']].map(([v,t])=>`<button data-act="ofmt" data-f="${v}" class="${(S.ofmt||'classic')===v?'on':''}">${t}</button>`).join('')}</div></div>
   <small style="display:block;color:var(--mut);margin-top:6px">${FMTTXT[S.ofmt||'classic']}</small>
   ${(S.ofmt||'classic')==='tourney'?'':`<div class="lbl">Nombre de questions</div><div class="opts"><div class="seg">${[5,10,15,20,0].map(l=>`<button data-act="olen" data-l="${l}" class="${(S.olen??10)===l?'on':''}">${l?l+' q.':'Toutes'}</button>`).join('')}</div></div>`}
   <div class="lbl">Ma façon de répondre</div><div class="opts"><div class="seg"><button data-act="omode" data-m="choix" class="${mic?'':'on'}">Choix A B C D</button><button data-act="omode" data-m="micro" class="${mic?'on':''}" ${SR?'':'disabled'}>Au micro</button></div></div>
@@ -642,10 +679,10 @@ function roomRender(force){
 }
 // ---------- partie de groupe : l'hôte arbitre, nombre de joueurs illimité ----------
 const QDUR=22000,RND=5;
-const FMTTXT={classic:'22 secondes par question, à ton rythme.',blitz:'9 secondes par question, ça va vite !',tourney:'Manches de 5 questions : le dernier de chaque manche est éliminé, jusqu\'au champion.'};
-const FMTN={classic:'Classique',blitz:'Blitz',tourney:'Tournoi'};
+const FMTTXT={review:'Les questions que le groupe réussit le moins. Celles que tout le monde a acquises sont sautées.',classic:'22 secondes par question, à ton rythme.',blitz:'9 secondes par question, ça va vite !',tourney:'Manches de 5 questions : le dernier de chaque manche est éliminé, jusqu\'au champion.'};
+const FMTN={review:'Révision de groupe',classic:'Classique',blitz:'Blitz',tourney:'Tournoi'};
 const durOf=f=>f==='blitz'?9000:QDUR;
-function packQ(q){const ch=choicesFor(q);return{c:q.c,q:q.clues?q.clues.join(' '):q.q,a:answerOf(q),k:q.k||autoKeys(answerOf(q)),ch,p:10}}
+function packQ(q){const ch=choicesFor(q);return{id:qid(q),c:q.c,q:q.clues?q.clues.join(' '):q.q,a:answerOf(q),k:q.k||autoKeys(answerOf(q)),ch,p:10}}
 function oClr(){if(!O)return;clearTimeout(O.tm);clearTimeout(O.grace);clearTimeout(O.ltm);clearInterval(O.bi);try{rec&&rec.abort()}catch(e){}rec=null}
 function stopOther(){stopTimer();G=null;if(D){dClear();D=null}speechSynthesis.cancel();toasts=[];drawLayer()}
 function onNet(m){
@@ -657,7 +694,7 @@ function onNet(m){
   if(!O||m.gid!==O.gid)return;
   if(O.isHost&&m.t==='emo'){showEmo(m.from,m.e);return}
   if(O.isHost){
-    if(m.t==='gjoin'){if(!(m.from in O.sc))O.sc[m.from]=0;O.names[m.from]=m.nom;O.av[m.from]=m.av||0;if(O.away)delete O.away[m.from];gList();
+    if(m.t==='gjoin'){if(m.st)O.pst[m.from]=m.st;if(!(m.from in O.sc))O.sc[m.from]=0;O.names[m.from]=m.nom;O.av[m.from]=m.av||0;if(O.away)delete O.away[m.from];gList();
       if(O.phase==='lobby'){oRender();tgtCheck();return}
       // arrivée ou retour en cours de partie : on lui envoie l'état actuel
       NET.send({t:'gsync',to:m.from,gid:O.gid,fmt:O.fmt,elim:O.elim||{},deck:O.deck,sc:O.sc,names:O.names,av:O.av,away:O.away||{},i:O.i,phase:O.phase,left:O.phase==='read'?O.end-Date.now():0,locked:O.locked||{},done:O.done||0});
@@ -673,7 +710,7 @@ function onNet(m){
   else if(m.t==='gsync'){Object.assign(O,{fmt:m.fmt||'classic',elim:m.elim||{},deck:m.deck,sc:m.sc,names:m.names,av:m.av||{},away:m.away||{},done:m.done||0});stopOther();
     if(m.phase==='lobby'){O.phase='lobby';O.lobbyEnd=Date.now()+(m.lobbyLeft||0);oRender();return}
     if(m.phase==='read'&&m.left>1500){oShowQ(m.i,m.left);Object.assign(O.locked,m.locked||{})}else{O.i=m.i;O.phase='wait';oRender()}}
-  else if(m.t==='gstart'){O.sc=m.sc;O.names=m.names;O.av=m.av||{};O.fmt=m.fmt||O.fmt;O.phase='wait';stopOther();oRender();say('C\'est parti !')}
+  else if(m.t==='gstart'){O.sc=m.sc;O.names=m.names;O.av=m.av||{};O.fmt=m.fmt||O.fmt;if(m.deck)O.deck=m.deck;O.phase='wait';stopOther();oRender();say('C\'est parti !')}
   else if(m.t==='q')oShowQ(m.i,m.dur);
   else if(m.t==='miss')oMiss(m.who);
   else if(m.t==='res')oRes(m);
@@ -686,7 +723,7 @@ function oLaunch(targets){
   const base=pool().filter(q=>!q.spell);
   const fmt=S.ofmt||'classic',src=shuffle(base.length?base:SHEET.filter(q=>!q.spell)),deck=src.slice(0,fmt==='tourney'?60:((S.olen??10)||src.length)).map(packQ),gid=myId+Date.now();
   toasts=[];drawLayer();READY=true;
-  O={gid,host:myId,isHost:true,fmt,lobbyEnd:Date.now()+LOBBY,deck,sc:{[myId]:0},names:{[myId]:myNom()},av:{[myId]:P?.av||0},phase:'lobby',over:false,i:-1,targets};
+  O={gid,host:myId,isHost:true,fmt,base:fmt==='review'?src:null,pst:{},lobbyEnd:Date.now()+LOBBY,deck,sc:{[myId]:0},names:{[myId]:myNom()},av:{[myId]:P?.av||0},phase:'lobby',over:false,i:-1,targets};
   NET.send({t:'ginv',to:targets||undefined,gid,nom:myNom(),av:P?.av||0,lobbyLeft:LOBBY,fmt,deck,duel:!!targets});NET.update();oRender();
   O.lt=setInterval(()=>{const e=$('#lobcount');if(e&&O)e.textContent=Math.max(0,Math.ceil((O.lobbyEnd-Date.now())/1000))+' s'},500);
   setTimeout(()=>{if(!O||O.gid!==gid||O.phase!=='lobby')return;clearInterval(O.lt);
@@ -695,7 +732,12 @@ function oLaunch(targets){
 function tgtCheck(){if(!O||!O.targets||O.phase!=='lobby')return;const resp=O.targets.filter(id=>id in O.sc||O.no?.[id]);
   if(resp.length<O.targets.length)return;Object.keys(O.sc).length>=2?gStart():oAbort(O.targets.length>1?'Personne n\'a accepté le défi.':(PEERS[O.targets[0]]?.nom||'Ton ami')+' a refusé le défi.')}
 function gList(){NET.send({t:'glist',gid:O.gid,sc:O.sc,names:O.names,av:O.av,away:O.away||{}})}
-function gStart(){if(!O||Object.keys(O.sc).length<2)return;clearInterval(O.lt);O.phase='wait';setTimeout(()=>NET.update(),50);NET.send({t:'gstart',gid:O.gid,sc:O.sc,names:O.names,av:O.av,fmt:O.fmt});say('C\'est parti !');oRender();setTimeout(oNextQ,1800)}
+function packStats(){return Object.fromEntries(Object.entries(stats()).map(([k,r])=>[k,[r.ok,r.ko,r.s]]))}
+function groupDeck(){ // faiblesse combinée du groupe ; on saute ce que tout le monde a acquis
+  const ids=Object.keys(O.sc),me=packStats(),ws=r=>!r?1:r[2]>=MASTER?-10:r[1]*2-r[0]-r[2]*2+3;
+  const scored=O.base.map(q=>{const id=qid(q),each=ids.map(p=>ws((p===myId?me:O.pst[p]||{})[id]));return{q,w:each.reduce((a,b)=>a+b,0),allAcq:each.every(x=>x===-10)}}).filter(x=>!x.allAcq);
+  const L=shuffle(scored).sort((a,b)=>b.w-a.w).map(x=>x.q);const n=(S.olen??10)||L.length;return (L.length?L:O.base).slice(0,n).map(packQ)}
+function gStart(){if(!O||Object.keys(O.sc).length<2)return;clearInterval(O.lt);if(O.fmt==='review'&&O.base)O.deck=groupDeck();O.phase='wait';setTimeout(()=>NET.update(),50);NET.send({t:'gstart',gid:O.gid,sc:O.sc,names:O.names,av:O.av,fmt:O.fmt,deck:O.fmt==='review'?O.deck:undefined});say('C\'est parti !');oRender();setTimeout(oNextQ,1800)}
 function oNextQ(){if(!O||O.over)return;const i=O.i+1;
   if(i>=O.deck.length){NET.send({t:'end',gid:O.gid,sc:O.sc});oEnd(O.sc);return}
   const d=durOf(O.fmt);NET.send({t:'q',gid:O.gid,i,dur:d});oShowQ(i,d)}
@@ -745,10 +787,10 @@ function tourneyCut(){
 function oElim(m){if(!O)return;O.elim=O.elim||{};m.ids.forEach(id=>O.elim[id]=true);O.phase='cut';O.cut=m;oRender();
   const n=m.ids.map(id=>O.names[id]).join(' et ');
   say(m.ids.includes(myId)?'Fin de la manche. Tu es éliminé.':m.ids.length?'Fin de la manche. '+n+(m.ids.length>1?' sont éliminés.':' est éliminé.'):'Fin de la manche. Égalité, personne n\'est éliminé.')}
-function oMiss(who){if(!O)return;O.locked[who]=true;O.marks[who]='x';
+function oMiss(who){if(!O)return;if(who===myId&&!O.locked[myId]&&!O.spectator)record(O.deck[O.i],false);O.locked[who]=true;O.marks[who]='x';
   if(who===myId){beep(200,.3);navigator.vibrate&&navigator.vibrate([60,60,60]);O.listening=false;try{rec&&rec.abort()}catch(e){}}
   oRender()}
-function oRes(m){if(!O)return;oClr();O.done=(O.done||0)+O.deck[O.i].p;if(O.isHost)setTimeout(()=>NET&&NET.update(),60);O.phase='show';O.sc=m.sc;O.res=m;if(m.win)O.marks[m.win]='ok';oRender();
+function oRes(m){if(!O)return;oClr();if(!O.spectator&&!O.locked[myId]&&(m.win===myId||O.mine==='ok'||(O.mine!=null&&O.deck[O.i].ch[O.mine]===O.deck[O.i].a)))record(O.deck[O.i],true);O.done=(O.done||0)+O.deck[O.i].p;if(O.isHost)setTimeout(()=>NET&&NET.update(),60);O.phase='show';O.sc=m.sc;O.res=m;if(m.win)O.marks[m.win]='ok';oRender();
   const a=O.deck[O.i].a;if(m.win===myId){beep(1320,.12);setTimeout(()=>beep(1760,.15),130);say('Bravo ! '+a)}else if(m.win)say(O.names[m.win]+' a le point. '+a);else say('La réponse était : '+a)}
 function board(){const ids=Object.keys(O.sc).sort((a,b)=>O.sc[b]-O.sc[a]);
   return `<div class="board">${ids.map(id=>`<div class="sb ${id===myId?'self':''} ${O.away?.[id]||O.elim?.[id]?'away':''} ${O.marks?.[id]||''}">${avImg(O.av?.[id],'sav')}<span>${esc(O.names[id]||'?')}</span><b>${pct(O.sc[id],O.done||0)} %</b>${O.marks?.[id]==='x'?'<i>✗</i>':O.marks?.[id]==='ok'?'<i>✓</i>':''}</div>`).join('')}</div>`}
@@ -828,11 +870,11 @@ Object.assign(ACT,{
   owait(b){const h=PEERS[b.dataset.id],g=h&&h.game;if(!g)return;NET.send({t:'wait',to:h.id,gid:g.gid,nom:myNom(),av:P?.av||0});waitingFor.add(g.gid);roomRender(true)},
   ojoinlive(b){const h=PEERS[b.dataset.id],g=h&&liveOf(h);if(!g){roomRender(true);return}READY=true;toasts=toasts.filter(t=>!t.btn);drawLayer();stopOther();if(O&&O.over)O=null;
     O={gid:g.gid,host:h.id,isHost:false,deck:[],sc:{},names:{[h.id]:h.nom},av:{[h.id]:h.av||0},away:{},phase:'wait',over:false,i:-1,locked:{},marks:{}};
-    NET.send({t:'gjoin',to:h.id,gid:g.gid,nom:myNom(),av:P?.av||0});NET.update();oRender();
+    NET.send({t:'gjoin',to:h.id,gid:g.gid,nom:myNom(),av:P?.av||0,st:g.fmt==='review'?packStats():null});NET.update();oRender();
     setTimeout(()=>{if(O&&O.gid===g.gid&&!O.deck.length)oAbort('Impossible de rejoindre la partie.')},8000)},
   oacc(){const v=INV;if(!v)return;INV=null;READY=true;drawLayer();stopOther();if(O&&O.over)O=null;
     O={gid:v.gid,host:v.from,isHost:false,fmt:v.fmt||'classic',lobbyEnd:Date.now()+(v.lobbyLeft||LOBBY),deck:v.deck,sc:{},names:{[v.from]:v.nom},av:{[v.from]:v.av||0},phase:'lobby',over:false,i:-1};
-    NET.send({t:'gjoin',to:v.from,gid:v.gid,nom:myNom(),av:P?.av||0});NET.update();oRender()},
+    NET.send({t:'gjoin',to:v.from,gid:v.gid,nom:myNom(),av:P?.av||0,st:v.fmt==='review'?packStats():null});NET.update();oRender()},
   odec(){if(INV)NET.send({t:'gno',to:INV.from,gid:INV.gid});INV=null;drawLayer()},
   opass(){O&&O.fin&&O.fin(false)},
   oemo(b){if(!O||Date.now()-lastEmo<1200)return;lastEmo=Date.now();const e=+b.dataset.e;NET.send({t:'emo',gid:O.gid,e});showEmo(myId,e)},
