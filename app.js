@@ -506,11 +506,11 @@ Object.assign(ACT,{
 const CFG=window.GEH_CONFIG||{},QS=new URLSearchParams(location.search);
 const myId=QS.get('pid')||store.get('geh-id',null)||(()=>{const id=Math.random().toString(36).slice(2,10);store.set('geh-id',id);return id})();
 const myNom=()=>QS.get('pn')||P?.nom||'Joueur';
-let NET=null,ROOM=null,PEERS={},O=null,INV=null,sbc=null;
+let NET=null,ROOM=null,PEERS={},O=null,INV=null,sbc=null,READY=false;const LOBBY=30000;
 const CODECH='ABCDEFGHJKMNPQRSTUVWXYZ23456789',newCode=()=>Array.from({length:5},()=>CODECH[Math.random()*CODECH.length|0]).join('');
 function loadSB(){return window.supabase?Promise.resolve():new Promise((res,rej)=>{const s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js';s.onload=res;s.onerror=()=>rej(new Error('librairie Supabase non chargée'));document.head.appendChild(s)})}
 async function netJoin(code,onPeers,onMsg,onDrop){
-  const me=()=>({id:myId,nom:myNom(),ecole:P?.ecole||'',av:P?.av||0,busy:!!(O&&!O.over),game:(O&&!O.over&&O.isHost&&O.phase!=='lobby')?{gid:O.gid,duel:!!O.targets,ids:Object.keys(O.sc),n:O.deck.length,i:O.i,ph:O.phase,left:O.phase==='read'?Math.max(0,O.end-Date.now()):0,top:topLine()}:null});
+  const me=()=>({id:myId,nom:myNom(),ecole:P?.ecole||'',av:P?.av||0,ready:READY,busy:!!(O&&!O.over&&!O.spectator),game:(O&&!O.over&&O.isHost)?{gid:O.gid,duel:!!O.targets,ids:Object.keys(O.sc),n:O.deck.length,i:O.i,ph:O.phase,left:O.phase==='read'?Math.max(0,O.end-Date.now()):O.phase==='lobby'?Math.max(0,O.lobbyEnd-Date.now()):0,top:topLine()}:null});
   if(CFG.supabaseUrl&&CFG.supabaseKey){
     await loadSB();sbc=sbc||window.supabase.createClient(new URL(CFG.supabaseUrl).origin,CFG.supabaseKey,{auth:{persistSession:false}});
     const ch=sbc.channel('geh-'+code,{config:{presence:{key:myId},broadcast:{self:false}}});
@@ -536,7 +536,8 @@ async function netJoin(code,onPeers,onMsg,onDrop){
   hello();
   return {send:m=>bc.postMessage({...m,from:myId}),update:hello,state:()=>'SUBSCRIBED',leave:()=>{bc.postMessage({t:'_bye',from:myId});clearInterval(iv);bc.close()}};
 }
-function oStatus(t){const e=$('#ost');if(e)e.textContent=t}
+let OSTAT={t:'',at:0};
+function oStatus(t){OSTAT={t,at:Date.now()};const e=$('#ost');if(e)e.textContent=t}
 function onlineScreen(){
   stopTimer();G=null;if(D){dClear();D=null}
   if(!P){profil();return}
@@ -587,7 +588,7 @@ function onPeers(p){
   }
   if(Date.now()-joinedAt>2500&&!(O&&!O.over))Object.values(p).filter(x=>!old[x.id]).forEach(friendToast);
   if(!(O&&!O.over))Object.values(p).forEach(x=>{const g=liveOf(x);if(g&&!seenLive.has(g.gid)){seenLive.add(g.gid);
-    toast(`<b>Partie en cours</b><small>chez ${esc(x.nom)}</small>`,null,15000,`<button class="btn gold" data-act="ojoinlive" data-id="${esc(x.id)}">${g.ids?.includes(myId)?'Revenir':'Rejoindre'}</button>`)}});
+    toast(`<b>Partie en cours</b><small>chez ${esc(x.nom)}</small>`,null,15000,(READY||g.ids?.includes(myId))?`<button class="btn gold" data-act="ojoinlive" data-id="${esc(x.id)}">${g.ids?.includes(myId)?'Revenir':'Rejoindre'}</button>`:`<button class="btn" data-act="owatch" data-id="${esc(x.id)}">Regarder</button>`)}});
   roomRender(false);pillUpd();
 }
 // ---------- couche d'alertes (par-dessus n'importe quel écran) ----------
@@ -606,16 +607,17 @@ function friendToast(p){
 }
 function pillUpd(){const e=$('#pill');if(!e)return;if(!ROOM){e.style.display='none';return}const n=Object.keys(PEERS).length;e.style.display='';e.innerHTML=`<span class="dot ${conn!=='ok'?'busy':n?'':'off'}"></span>Salle ${esc(ROOM)} · ${conn!=='ok'?'reconnexion…':n?n+' en ligne':'personne pour l\'instant'}`}
 function leaveRoom(){if(O&&!O.over)ACT.oquit(true);try{NET&&NET.leave()}catch(e){}NET=null;ROOM=null;PEERS={};INV=null;O=null;toasts=[];drawLayer()}
-function invHTML(){return INV?`<div class="ov"><div class="ovc">${INV.av?avImg(INV.av,'ovav'):'<img src="icon-192.webp" alt="">'}<h2>${esc(INV.nom)} ${INV.duel?'te défie':'lance une partie'} !</h2><p>${INV.deck.length} questions${INV.duel?'':' · pour toute la salle'}</p><div class="row" style="justify-content:center"><button class="btn bad" data-act="odec">Non merci</button><button class="btn pri" data-act="oacc">Jouer !</button></div></div></div>`:''}
+function invHTML(){return INV?`<div class="ov"><div class="ovc">${INV.av?avImg(INV.av,'ovav'):'<img src="icon-192.webp" alt="">'}<h2>${esc(INV.nom)} ${INV.duel?'te défie':'lance une partie'} !</h2><p>${INV.deck.length} questions${INV.duel?'':' · pour toute la salle'}</p><p style="font-size:13px">Il faut être prêt pour participer. Sinon, tu peux regarder.</p><div style="display:grid;gap:8px;margin-top:14px"><button class="btn pri" data-act="oacc">Je suis prêt, je joue !</button><button class="btn" data-act="owatchinv">Regarder seulement</button><button class="btn ghost" data-act="odec">Non merci</button></div></div></div>`:''}
 function topLine(){if(!O)return'';const ids=Object.keys(O.sc).sort((a,b)=>O.sc[b]-O.sc[a]).slice(0,3);return ids.map(id=>(O.names[id]||'?')+' '+pct(O.sc[id],O.done||0)+' %').join(' · ')}
 function liveOf(p){return p.game&&(!p.game.duel||p.game.ids?.includes(myId))?p.game:null}
 const waitingFor=new Set(),SEL=new Set();
 function liveHTML(list){const h=list.find(p=>p.game);if(!h||(O&&!O.over))return'';const g=h.game,mine=g.ids?.includes(myId),canJoin=!g.duel||mine;
   return `<div class="live"><span class="dot busy"></span><div class="pn"><b>${g.duel&&!mine?'Défi privé':'Partie en cours'} chez ${esc(h.nom)}</b>
-  <small>${g.ph==='read'?`Question ${g.i+1}/${g.n} · <b id="livecount" data-left="${g.left}" data-at="${g.at}">${Math.ceil(g.left/1000)} s</b>`:g.i<0?'Ça commence…':`Question ${g.i+1}/${g.n} terminée`}</small>
+  <small>${g.ph==='lobby'?`Départ dans <b id="livecount" data-left="${g.left}" data-at="${g.at}">${Math.ceil(g.left/1000)} s</b>${READY||mine?'':' · coche « Prêt » pour jouer'}`:g.ph==='read'?`Question ${g.i+1}/${g.n} · <b id="livecount" data-left="${g.left}" data-at="${g.at}">${Math.ceil(g.left/1000)} s</b>`:g.i<0?'Ça commence…':`Question ${g.i+1}/${g.n} terminée`}</small>
   ${g.top?`<small class="ltop">${esc(g.top)}</small>`:''}</div>
-  <div class="lbtns">${canJoin?`<button class="btn gold" data-act="ojoinlive" data-id="${esc(h.id)}">${mine?'Revenir':'Rejoindre'}</button>`:''}
+  <div class="lbtns">${canJoin&&(READY||mine)?`<button class="btn gold" data-act="ojoinlive" data-id="${esc(h.id)}">${mine?'Revenir':g.ph==='lobby'?'Je participe':'Rejoindre'}</button>`:''}${!mine&&!g.duel?`<button class="btn" data-act="owatch" data-id="${esc(h.id)}">Regarder</button>`:''}
   ${mine?'':waitingFor.has(g.gid)?'<small class="wok">✓ Il sait que tu attends</small>':`<button class="btn ghost" data-act="owait" data-id="${esc(h.id)}">M'attendre</button>`}</div></div>`}
+setInterval(()=>{const l=$('#lobcount');if(l&&O&&O.lobbyEnd)l.textContent=Math.max(0,Math.ceil((O.lobbyEnd-Date.now())/1000))+' s'},500);
 setInterval(()=>{const e=$('#livecount');if(!e)return;const l=+e.dataset.left-(Date.now()-+e.dataset.at);e.textContent=Math.max(0,Math.ceil(l/1000))+' s'},500);
 function roomRender(force){
   if(!ROOM||(O&&!O.over))return;if(!force&&!$('.room'))return;
@@ -623,16 +625,18 @@ function roomRender(force){
   app.innerHTML=`<div class="room"><div class="top"><button class="x" data-go="home" aria-label="Retour au jeu">←</button><h2 style="font-size:20px;flex:1">Salle <span id="conn" class="conn ${conn}">${conn==='ok'?'Connecté':'Reconnexion…'}</span></h2><button class="btn bad" style="padding:8px 12px;font-size:13px" data-act="oleave">Quitter la salle</button></div>
   <p class="note" style="margin:0 0 10px">Tu peux retourner jouer : tu restes connecté et une alerte s'affiche quand un ami arrive ou lance une partie.</p>
   <div class="codebox"><small>Code de la salle</small><div class="code">${ROOM}</div><button class="btn pri" data-act="oshare">Inviter des amis (lien)</button><small style="display:block;margin-top:8px;text-transform:none;letter-spacing:0">Tes amis touchent le lien et arrivent directement ici. Ils peuvent aussi taper le code dans En ligne.</small></div>
+  <button class="btn readyb ${READY?'on':''}" data-act="oready">${READY?'✓ Je suis prêt · en attente d\'une partie':'Je suis prêt à jouer'}</button>
+  <small style="display:block;text-align:center;color:var(--mut);margin-top:6px">${READY?'Touche encore pour ne plus être prêt.':'Seuls les joueurs prêts participent. Les autres peuvent regarder.'}</small>
   ${liveHTML(list)}
   ${(()=>{for(const id of [...SEL])if(!PEERS[id]||PEERS[id].busy)SEL.delete(id);const n=SEL.size;
     return n?`<button class="btn pri" style="width:100%;margin-top:14px;padding:16px;font-size:17px" data-act="osel">Défier ${n} joueur${n>1?'s':''}</button><button class="btn ghost" style="width:100%;margin-top:6px" data-act="oselclr">Annuler la sélection</button>`
       :`<button class="btn pri" style="width:100%;margin-top:14px;padding:16px;font-size:17px" data-act="ogroup" ${list.length?'':'disabled'}>Lancer une partie pour toute la salle</button><small style="display:block;text-align:center;color:var(--mut);margin-top:6px">ou touche des joueurs ci-dessous pour en défier quelques-uns</small>`})()}
   <div class="lbl" style="display:flex;align-items:center">En ligne maintenant (${list.length})<button class="btn ghost" style="margin-left:auto;padding:4px 10px;font-size:12px" data-act="orefresh">Actualiser</button></div>
-  ${list.length?list.map(p=>`<div class="peer">${p.av?avImg(p.av,'pav'):''}<span class="dot ${p.busy?'busy':''}"></span><div class="pn"><b>${esc(p.nom)}</b><small>${esc(p.ecole||'')}${p.busy?(p.ecole?' · ':'')+'en partie':''}</small></div><button class="pick ${SEL.has(p.id)?'on':''}" data-act="opick" data-id="${esc(p.id)}" ${p.busy?'disabled':''} aria-label="Choisir">${SEL.has(p.id)?'✓':''}</button></div>`).join('')
+  ${list.length?list.map(p=>`<div class="peer">${p.av?avImg(p.av,'pav'):''}<span class="dot ${p.busy?'busy':''}"></span><div class="pn"><b>${esc(p.nom)}${p.ready&&!p.busy?' <span class="rdy">Prêt</span>':''}</b><small>${esc(p.ecole||'')}${p.busy?(p.ecole?' · ':'')+'en partie':''}</small></div><button class="pick ${SEL.has(p.id)?'on':''}" data-act="opick" data-id="${esc(p.id)}" ${p.busy?'disabled':''} aria-label="Choisir">${SEL.has(p.id)?'✓':''}</button></div>`).join('')
    :`<p class="note">Personne d'autre pour l'instant. Donne le code <b style="color:var(--gold)">${ROOM}</b> à tes amis.</p>`}
   <div class="lbl">Partie</div><div class="opts"><div class="seg">${[5,10,15,20].map(l=>`<button data-act="olen" data-l="${l}" class="${(S.olen||10)===l?'on':''}">${l} q.</button>`).join('')}</div></div>
   <div class="lbl">Ma façon de répondre</div><div class="opts"><div class="seg"><button data-act="omode" data-m="choix" class="${mic?'':'on'}">Choix A B C D</button><button data-act="omode" data-m="micro" class="${mic?'on':''}" ${SR?'':'disabled'}>Au micro</button></div></div>
-  <div id="ost" class="note"></div></div>`;
+  <div id="ost" class="note">${Date.now()-OSTAT.at<10000?esc(OSTAT.t):''}</div></div>`;
 }
 // ---------- partie de groupe : l'hôte arbitre, nombre de joueurs illimité ----------
 const QDUR=22000;
@@ -641,7 +645,9 @@ function oClr(){if(!O)return;clearTimeout(O.tm);clearTimeout(O.grace);clearTimeo
 function stopOther(){stopTimer();G=null;if(D){dClear();D=null}speechSynthesis.cancel();toasts=[];drawLayer()}
 function onNet(m){
   if(m.to&&!(Array.isArray(m.to)?m.to.includes(myId):m.to===myId))return;
-  if(m.t==='ginv'){if(O&&!O.over||INV)return;INV=m;beep(990,.1);navigator.vibrate&&navigator.vibrate([80,60,80]);
+  if(m.t==='ginv'){if(O&&!O.over||INV)return;
+    if(READY){INV=m;toast(`<b>${esc(m.nom)}</b> lance une partie : tu es inscrit !`,null,4000);ACT.oacc();return}
+    INV=m;beep(990,.1);navigator.vibrate&&navigator.vibrate([80,60,80]);
     say(m.nom+(m.duel?' te défie !':' lance une partie !'));drawLayer();setTimeout(()=>{if(INV&&INV.gid===m.gid){INV=null;drawLayer()}},30000);return}
   if(!O||m.gid!==O.gid)return;
   if(O.isHost&&m.t==='emo'){showEmo(m.from,m.e);return}
@@ -653,33 +659,37 @@ function onNet(m){
       NET.update();oRender();return}
     if(m.t==='gno'&&O.targets&&O.phase==='lobby'){O.no=O.no||{};O.no[m.from]=1;toast(esc((PEERS[m.from]?.nom||'Un ami')+' a refusé le défi.'),null,4000);tgtCheck();return}
     if(m.t==='wait'){O.waiting=O.waiting||{};O.waiting[m.from]=m.nom;const box=$('#emos');if(box){const d=document.createElement('div');d.className='emo txt';d.innerHTML=`${avImg(m.av,'eav')}<span>${esc(m.nom)}</span>t'attend pour la prochaine partie`;box.appendChild(d);setTimeout(()=>d.remove(),4000)}else toast(`<b>${esc(m.nom)}</b> t'attend pour la prochaine partie`,null,6000);if(O.over)oEnd(O.sc);return}
-    if(m.t==='gquit'){if(O.phase==='lobby')delete O.sc[m.from];else{O.away=O.away||{};O.away[m.from]=true}gList();if(O.phase==='lobby'&&O.targets)oAbort((O.names[m.from]||'Ton ami')+' a quitté.');else{if(O.phase==='read')hostAllLocked();oRender()}return}
+    if(m.t==='gwatch'){O.watch=O.watch||{};O.watch[m.from]=m.nom;NET.send({t:'gsync',to:m.from,gid:O.gid,deck:O.deck,sc:O.sc,names:O.names,av:O.av,away:O.away||{},i:O.i,phase:O.phase,left:O.phase==='read'?O.end-Date.now():0,locked:O.locked||{},done:O.done||0,lobbyLeft:O.phase==='lobby'?O.lobbyEnd-Date.now():0});oRender();return}
+    if(m.t==='gquit'){if(O.watch?.[m.from]){delete O.watch[m.from];oRender();return}if(O.phase==='lobby')delete O.sc[m.from];else{O.away=O.away||{};O.away[m.from]=true}gList();if(O.phase==='lobby'&&O.targets)oAbort((O.names[m.from]||'Ton ami')+' a quitté.');else{if(O.phase==='read')hostAllLocked();oRender()}return}
     if(m.t==='ans')hostAns(m.from,m.i,m);
     return}
   if(m.t==='emo'){showEmo(m.from,m.e);return}
   if(m.t==='glist'){O.sc=m.sc;O.names=m.names;O.av=m.av||{};O.away=m.away||{};oRender()}
   else if(m.t==='gsync'){Object.assign(O,{deck:m.deck,sc:m.sc,names:m.names,av:m.av||{},away:m.away||{},done:m.done||0});stopOther();
+    if(m.phase==='lobby'){O.phase='lobby';O.lobbyEnd=Date.now()+(m.lobbyLeft||0);oRender();return}
     if(m.phase==='read'&&m.left>1500){oShowQ(m.i,m.left);Object.assign(O.locked,m.locked||{})}else{O.i=m.i;O.phase='wait';oRender()}}
   else if(m.t==='gstart'){O.sc=m.sc;O.names=m.names;O.av=m.av||{};O.phase='wait';stopOther();oRender();say('C\'est parti !')}
   else if(m.t==='q')oShowQ(m.i,m.dur);
   else if(m.t==='miss')oMiss(m.who);
   else if(m.t==='res')oRes(m);
   else if(m.t==='end')oEnd(m.sc);
-  else if(m.t==='gcancel')oAbort('La partie a été annulée.');
+  else if(m.t==='gcancel')oAbort(m.why==='few'?'Partie annulée : il faut au moins 2 joueurs prêts.':'La partie a été annulée.');
 }
 function oLaunch(targets){
   if(O&&!O.over)return;
   const base=pool().filter(q=>!q.spell);
   const deck=shuffle(base.length?base:SHEET.filter(q=>!q.spell)).slice(0,S.olen||10).map(packQ),gid=myId+Date.now();
-  toasts=[];drawLayer();
-  O={gid,host:myId,isHost:true,deck,sc:{[myId]:0},names:{[myId]:myNom()},av:{[myId]:P?.av||0},phase:'lobby',over:false,i:-1,targets};
-  NET.send({t:'ginv',to:targets||undefined,gid,nom:myNom(),av:P?.av||0,deck,duel:!!targets});NET.update();oRender();
-  setTimeout(()=>{if(O&&O.gid===gid&&O.phase==='lobby'&&targets){Object.keys(O.sc).length>=2?gStart():oAbort(targets.length>1?'Personne n\'a répondu.':(PEERS[targets[0]]?.nom||'Ton ami')+' n\'a pas répondu.')}},30000);
+  toasts=[];drawLayer();READY=true;
+  O={gid,host:myId,isHost:true,lobbyEnd:Date.now()+LOBBY,deck,sc:{[myId]:0},names:{[myId]:myNom()},av:{[myId]:P?.av||0},phase:'lobby',over:false,i:-1,targets};
+  NET.send({t:'ginv',to:targets||undefined,gid,nom:myNom(),av:P?.av||0,lobbyLeft:LOBBY,deck,duel:!!targets});NET.update();oRender();
+  O.lt=setInterval(()=>{const e=$('#lobcount');if(e&&O)e.textContent=Math.max(0,Math.ceil((O.lobbyEnd-Date.now())/1000))+' s'},500);
+  setTimeout(()=>{if(!O||O.gid!==gid||O.phase!=='lobby')return;clearInterval(O.lt);
+    if(Object.keys(O.sc).length>=2)gStart();else{NET.send({t:'gcancel',gid,why:'few'});oAbort('Partie annulée : il faut au moins 2 joueurs prêts.')}},LOBBY);
 }
 function tgtCheck(){if(!O||!O.targets||O.phase!=='lobby')return;const resp=O.targets.filter(id=>id in O.sc||O.no?.[id]);
   if(resp.length<O.targets.length)return;Object.keys(O.sc).length>=2?gStart():oAbort(O.targets.length>1?'Personne n\'a accepté le défi.':(PEERS[O.targets[0]]?.nom||'Ton ami')+' a refusé le défi.')}
 function gList(){NET.send({t:'glist',gid:O.gid,sc:O.sc,names:O.names,av:O.av,away:O.away||{}})}
-function gStart(){if(!O||Object.keys(O.sc).length<2)return;O.phase='wait';setTimeout(()=>NET.update(),50);NET.send({t:'gstart',gid:O.gid,sc:O.sc,names:O.names,av:O.av});say('C\'est parti !');oRender();setTimeout(oNextQ,1800)}
+function gStart(){if(!O||Object.keys(O.sc).length<2)return;clearInterval(O.lt);O.phase='wait';setTimeout(()=>NET.update(),50);NET.send({t:'gstart',gid:O.gid,sc:O.sc,names:O.names,av:O.av});say('C\'est parti !');oRender();setTimeout(oNextQ,1800)}
 function oNextQ(){if(!O||O.over)return;const i=O.i+1;
   if(i>=O.deck.length){NET.send({t:'end',gid:O.gid,sc:O.sc});oEnd(O.sc);return}
   NET.send({t:'q',gid:O.gid,i,dur:QDUR});oShowQ(i,QDUR)}
@@ -690,8 +700,8 @@ function oShowQ(i,dur){if(O&&O.isHost)setTimeout(()=>NET&&NET.update(),60);
   if(O.isHost)O.tm=setTimeout(()=>{if(O&&O.phase==='read'&&O.i===i)hostResolve(null)},dur+600);
 }
 function oSend(a){const i=O.i;a.rt=performance.now()-O.shown;O.isHost?hostAns(myId,i,a):NET.send({t:'ans',to:O.host,gid:O.gid,i,...a})}
-function oTap(idx){if(!O||O.phase!=='read'||O.locked[myId]||O.mine!=null)return;O.mine=idx;navigator.vibrate&&navigator.vibrate(40);speechSynthesis.cancel();oRender();oSend({v:idx})}
-function oBuzz(){if(!O||O.phase!=='read'||O.locked[myId]||O.mine!=null||O.listening)return;speechSynthesis.cancel();navigator.vibrate&&navigator.vibrate(50);O.listening=true;O.heard='';oRender();oListen()}
+function oTap(idx){if(!O||O.spectator||O.phase!=='read'||O.locked[myId]||O.mine!=null)return;O.mine=idx;navigator.vibrate&&navigator.vibrate(40);speechSynthesis.cancel();oRender();oSend({v:idx})}
+function oBuzz(){if(!O||O.spectator||O.phase!=='read'||O.locked[myId]||O.mine!=null||O.listening)return;speechSynthesis.cancel();navigator.vibrate&&navigator.vibrate(50);O.listening=true;O.heard='';oRender();oListen()}
 function oListen(){
   const q=O.deck[O.i];let done=false;
   const fin=ok=>{if(done)return;done=true;clearTimeout(O.ltm);try{rec&&rec.abort()}catch(e){}rec=null;if(!O||O.phase!=='read')return;O.listening=false;O.mine=ok?'ok':'x';oRender();oSend({ok})};
@@ -728,13 +738,15 @@ function oRender(){
   if(!O)return;const n=Object.keys(O.sc).length,hostN=esc(O.names[O.host]||'L\'hôte');
   if(O.phase==='lobby'){
     app.innerHTML=`<div class="room"><div class="top"><button class="x" data-act="oquit" aria-label="Annuler">✕</button><h2 style="font-size:20px">${O.targets?'Défi envoyé':'Partie de salle'}</h2></div>
-    <div class="codebox"><small>${O.isHost?(O.targets?'En attente de la réponse…':'Les joueurs s\'inscrivent'):'Tu es inscrit !'}</small><div class="code" style="font-size:40px;letter-spacing:2px;padding:0">${n}</div><small>joueur${n>1?'s':''} · ${O.deck.length} questions</small></div>
+    <div class="codebox"><small>${O.spectator?'Tu regardes · la partie commence dans':'Départ dans'} <b id="lobcount">${Math.max(0,Math.ceil(((O.lobbyEnd||Date.now())-Date.now())/1000))} s</b> · minimum 2 joueurs prêts</small>
+    <small style="display:block;margin-top:6px">${O.isHost?(O.targets?'Défi envoyé, en attente des réponses':'Les joueurs prêts s\'inscrivent'):O.spectator?'':'Tu es inscrit !'}</small><div class="code" style="font-size:40px;letter-spacing:2px;padding:0">${n}</div><small>joueur${n>1?'s':''} · ${O.deck.length} questions</small></div>
     <div class="lbl">Inscrits</div>${Object.keys(O.sc).map(id=>`<div class="peer">${avImg(O.av?.[id],'pav')}<span class="dot"></span><div class="pn"><b>${esc(O.names[id])}${id===O.host?' (hôte)':''}</b></div></div>`).join('')}
     ${O.isHost?(O.targets&&O.targets.length<2?'':`<button class="btn pri" style="width:100%;margin-top:16px;padding:16px;font-size:17px" data-act="ostart" ${n<2?'disabled':''}>${n<2?'En attente de joueurs…':'Commencer ('+n+' joueurs)'}</button>`):`<p class="note">En attente que ${hostN} commence…</p>`}</div>`;
     return}
   const q=O.deck[O.i];let z='';
   if(!q)z='<div class="state">Préparez-vous…</div>';
   else if(O.phase==='show'){const r=O.res;z=`<div class="state ${r.win===myId?'win':r.win?'lose':''}">${r.win?avImg(O.av?.[r.win],'wav'):''}<small>${r.win===myId?'Bonne réponse !':r.win?esc(O.names[r.win])+' a eu le point':'Personne n\'a trouvé'}</small><div class="big2">${esc(q.a)}</div></div>`}
+  else if(O.spectator)z=`<div class="state">Tu regardes la partie<small>Coche « Prêt » dans la salle pour jouer la prochaine.</small></div>`;
   else if(O.locked[myId])z=`<div class="state lose">Raté !<small>La question reste ouverte pour les autres.</small></div>`;
   else if(O.mine!=null)z=`<div class="state">${O.mine==='ok'?'Bonne réponse ! Vérification…':'Réponse envoyée…'}</div>`;
   else if(O.listening)z=`<div class="state talk"><div class="mic"></div><div>Parle ! Les autres ne t'entendent pas.</div><div class="heard" id="oheard">${O.heard?'« '+esc(O.heard)+' »':''}</div><button class="btn ghost" data-act="opass">Je passe</button></div>`;
@@ -757,7 +769,7 @@ function oEnd(sc){
   <ol class="podium">${ids.map((id,k)=>`<li class="${id===myId?'self':''}"><span>${k<3?['🥇','🥈','🥉'][k]:k+1+'.'}</span>${avImg(O.av?.[id],'pav')}<b>${esc(O.names[id]||'?')}</b><em>${pct(sc[id],O.deck.reduce((t,q)=>t+q.p,0))} %</em></li>`).join('')}</ol>
   ${O.isHost&&O.waiting&&Object.keys(O.waiting).length?`<p class="note" style="text-align:center">Ils t'attendent : <b style="color:var(--gold)">${Object.values(O.waiting).map(esc).join(', ')}</b></p>`:''}<div class="row" style="justify-content:center"><button class="btn pri" data-act="ogroup">Nouvelle partie</button><button class="btn" data-act="oroom">Retour à la salle</button></div>${emoBar()}</div><div id="emos"></div>`;
 }
-function oAbort(msg){if(!O)return;oClr();O=null;if(NET)NET.update();roomRender(true);oStatus(msg)}
+function oAbort(msg){if(!O)return;oClr();clearInterval(O.lt);O=null;if(NET)NET.update();roomRender(true);oStatus(msg);toast(esc(msg),null,6000)}
 app.addEventListener('pointerdown',e=>{const f=e.target.closest('[data-ofast]');if(f&&!f.disabled){e.preventDefault();oTap(+f.dataset.ofast);return}
   if(e.target.closest('[data-obuzz]')){e.preventDefault();oBuzz()}});
 Object.assign(ACT,{
@@ -783,16 +795,22 @@ Object.assign(ACT,{
   ogroup(){if(O&&O.over)O=null;oLaunch(null)},
   oinvite(b){if(O&&O.over)O=null;oLaunch([b.dataset.id])},
   ostart(){gStart()},
+  oready(){READY=!READY;NET&&NET.update();roomRender(true);
+    if(READY){const h=Object.values(PEERS).find(p=>p.game&&p.game.ph==='lobby'&&(!p.game.duel||p.game.ids?.includes(myId)));if(h)ACT.ojoinlive({dataset:{id:h.id}})}},
+  owatch(b){const h=PEERS[b.dataset.id],g=h&&h.game;if(!g){roomRender(true);return}stopOther();if(O&&O.over)O=null;
+    O={gid:g.gid,host:h.id,isHost:false,spectator:true,deck:[],sc:{},names:{[h.id]:h.nom},av:{[h.id]:h.av||0},away:{},phase:'wait',over:false,i:-1,locked:{},marks:{}};
+    NET.send({t:'gwatch',to:h.id,gid:g.gid,nom:myNom()});oRender()},
+  owatchinv(){const v=INV;if(!v)return;INV=null;drawLayer();ACT.owatch({dataset:{id:v.from}})},
   opick(b){const id=b.dataset.id;SEL.has(id)?SEL.delete(id):SEL.add(id);roomRender(true)},
   oselclr(){SEL.clear();roomRender(true)},
   osel(){const t=[...SEL].filter(id=>PEERS[id]&&!PEERS[id].busy);SEL.clear();if(!t.length){roomRender(true);return}if(O&&O.over)O=null;oLaunch(t)},
   owait(b){const h=PEERS[b.dataset.id],g=h&&h.game;if(!g)return;NET.send({t:'wait',to:h.id,gid:g.gid,nom:myNom(),av:P?.av||0});waitingFor.add(g.gid);roomRender(true)},
-  ojoinlive(b){const h=PEERS[b.dataset.id],g=h&&liveOf(h);if(!g){roomRender(true);return}toasts=toasts.filter(t=>!t.btn);drawLayer();stopOther();if(O&&O.over)O=null;
+  ojoinlive(b){const h=PEERS[b.dataset.id],g=h&&liveOf(h);if(!g){roomRender(true);return}READY=true;toasts=toasts.filter(t=>!t.btn);drawLayer();stopOther();if(O&&O.over)O=null;
     O={gid:g.gid,host:h.id,isHost:false,deck:[],sc:{},names:{[h.id]:h.nom},av:{[h.id]:h.av||0},away:{},phase:'wait',over:false,i:-1,locked:{},marks:{}};
     NET.send({t:'gjoin',to:h.id,gid:g.gid,nom:myNom(),av:P?.av||0});NET.update();oRender();
     setTimeout(()=>{if(O&&O.gid===g.gid&&!O.deck.length)oAbort('Impossible de rejoindre la partie.')},8000)},
-  oacc(){const v=INV;if(!v)return;INV=null;drawLayer();stopOther();if(O&&O.over)O=null;
-    O={gid:v.gid,host:v.from,isHost:false,deck:v.deck,sc:{},names:{[v.from]:v.nom},av:{[v.from]:v.av||0},phase:'lobby',over:false,i:-1};
+  oacc(){const v=INV;if(!v)return;INV=null;READY=true;drawLayer();stopOther();if(O&&O.over)O=null;
+    O={gid:v.gid,host:v.from,isHost:false,lobbyEnd:Date.now()+(v.lobbyLeft||LOBBY),deck:v.deck,sc:{},names:{[v.from]:v.nom},av:{[v.from]:v.av||0},phase:'lobby',over:false,i:-1};
     NET.send({t:'gjoin',to:v.from,gid:v.gid,nom:myNom(),av:P?.av||0});NET.update();oRender()},
   odec(){if(INV)NET.send({t:'gno',to:INV.from,gid:INV.gid});INV=null;drawLayer()},
   opass(){O&&O.fin&&O.fin(false)},
