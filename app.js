@@ -510,7 +510,7 @@ let NET=null,ROOM=null,PEERS={},O=null,INV=null,sbc=null,READY=false;const LOBBY
 const CODECH='ABCDEFGHJKMNPQRSTUVWXYZ23456789',newCode=()=>Array.from({length:5},()=>CODECH[Math.random()*CODECH.length|0]).join('');
 function loadSB(){return window.supabase?Promise.resolve():new Promise((res,rej)=>{const s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js';s.onload=res;s.onerror=()=>rej(new Error('librairie Supabase non chargée'));document.head.appendChild(s)})}
 async function netJoin(code,onPeers,onMsg,onDrop){
-  const me=()=>({id:myId,nom:myNom(),ecole:P?.ecole||'',av:P?.av||0,ready:READY,busy:!!(O&&!O.over&&!O.spectator),game:(O&&!O.over&&O.isHost)?{gid:O.gid,duel:!!O.targets,ids:Object.keys(O.sc),n:O.deck.length,i:O.i,ph:O.phase,left:O.phase==='read'?Math.max(0,O.end-Date.now()):O.phase==='lobby'?Math.max(0,O.lobbyEnd-Date.now()):0,top:topLine()}:null});
+  const me=()=>({id:myId,nom:myNom(),ecole:P?.ecole||'',av:P?.av||0,ready:READY,busy:!!(O&&!O.over&&!O.spectator),game:(O&&!O.over&&O.isHost)?{gid:O.gid,fmt:O.fmt,duel:!!O.targets,ids:Object.keys(O.sc),n:O.deck.length,i:O.i,ph:O.phase,left:O.phase==='read'?Math.max(0,O.end-Date.now()):O.phase==='lobby'?Math.max(0,O.lobbyEnd-Date.now()):0,top:topLine()}:null});
   if(CFG.supabaseUrl&&CFG.supabaseKey){
     await loadSB();sbc=sbc||window.supabase.createClient(new URL(CFG.supabaseUrl).origin,CFG.supabaseKey,{auth:{persistSession:false}});
     const ch=sbc.channel('geh-'+code,{config:{presence:{key:myId},broadcast:{self:false}}});
@@ -607,12 +607,12 @@ function friendToast(p){
 }
 function pillUpd(){const e=$('#pill');if(!e)return;if(!ROOM){e.style.display='none';return}const n=Object.keys(PEERS).length;e.style.display='';e.innerHTML=`<span class="dot ${conn!=='ok'?'busy':n?'':'off'}"></span>Salle ${esc(ROOM)} · ${conn!=='ok'?'reconnexion…':n?n+' en ligne':'personne pour l\'instant'}`}
 function leaveRoom(){if(O&&!O.over)ACT.oquit(true);try{NET&&NET.leave()}catch(e){}NET=null;ROOM=null;PEERS={};INV=null;O=null;toasts=[];drawLayer()}
-function invHTML(){return INV?`<div class="ov"><div class="ovc">${INV.av?avImg(INV.av,'ovav'):'<img src="icon-192.webp" alt="">'}<h2>${esc(INV.nom)} ${INV.duel?'te défie':'lance une partie'} !</h2><p>${INV.deck.length} questions${INV.duel?'':' · pour toute la salle'}</p><p style="font-size:13px">Il faut être prêt pour participer. Sinon, tu peux regarder.</p><div style="display:grid;gap:8px;margin-top:14px"><button class="btn pri" data-act="oacc">Je suis prêt, je joue !</button><button class="btn" data-act="owatchinv">Regarder seulement</button><button class="btn ghost" data-act="odec">Non merci</button></div></div></div>`:''}
+function invHTML(){return INV?`<div class="ov"><div class="ovc">${INV.av?avImg(INV.av,'ovav'):'<img src="icon-192.webp" alt="">'}<h2>${esc(INV.nom)} ${INV.duel?'te défie':'lance une partie'} !</h2><p>${FMTN[INV.fmt||'classic']} · ${INV.fmt==='tourney'?'élimination par manches':INV.deck.length+' questions'}${INV.duel?'':' · pour toute la salle'}</p><p style="font-size:13px">Il faut être prêt pour participer. Sinon, tu peux regarder.</p><div style="display:grid;gap:8px;margin-top:14px"><button class="btn pri" data-act="oacc">Je suis prêt, je joue !</button><button class="btn" data-act="owatchinv">Regarder seulement</button><button class="btn ghost" data-act="odec">Non merci</button></div></div></div>`:''}
 function topLine(){if(!O)return'';const ids=Object.keys(O.sc).sort((a,b)=>O.sc[b]-O.sc[a]).slice(0,3);return ids.map(id=>(O.names[id]||'?')+' '+pct(O.sc[id],O.done||0)+' %').join(' · ')}
 function liveOf(p){return p.game&&(!p.game.duel||p.game.ids?.includes(myId))?p.game:null}
 const waitingFor=new Set(),SEL=new Set();
 function liveHTML(list){const h=list.find(p=>p.game);if(!h||(O&&!O.over))return'';const g=h.game,mine=g.ids?.includes(myId),canJoin=!g.duel||mine;
-  return `<div class="live"><span class="dot busy"></span><div class="pn"><b>${g.duel&&!mine?'Défi privé':'Partie en cours'} chez ${esc(h.nom)}</b>
+  return `<div class="live"><span class="dot busy"></span><div class="pn"><b>${g.duel&&!mine?'Défi privé':g.fmt==='tourney'?'Tournoi':g.fmt==='blitz'?'Blitz':'Partie en cours'} chez ${esc(h.nom)}</b>
   <small>${g.ph==='lobby'?`Départ dans <b id="livecount" data-left="${g.left}" data-at="${g.at}">${Math.ceil(g.left/1000)} s</b>${READY||mine?'':' · coche « Prêt » pour jouer'}`:g.ph==='read'?`Question ${g.i+1}/${g.n} · <b id="livecount" data-left="${g.left}" data-at="${g.at}">${Math.ceil(g.left/1000)} s</b>`:g.i<0?'Ça commence…':`Question ${g.i+1}/${g.n} terminée`}</small>
   ${g.top?`<small class="ltop">${esc(g.top)}</small>`:''}</div>
   <div class="lbtns">${canJoin&&(READY||mine)?`<button class="btn gold" data-act="ojoinlive" data-id="${esc(h.id)}">${mine?'Revenir':g.ph==='lobby'?'Je participe':'Rejoindre'}</button>`:''}${!mine&&!g.duel?`<button class="btn" data-act="owatch" data-id="${esc(h.id)}">Regarder</button>`:''}
@@ -634,12 +634,17 @@ function roomRender(force){
   <div class="lbl" style="display:flex;align-items:center">En ligne maintenant (${list.length})<button class="btn ghost" style="margin-left:auto;padding:4px 10px;font-size:12px" data-act="orefresh">Actualiser</button></div>
   ${list.length?list.map(p=>`<div class="peer">${p.av?avImg(p.av,'pav'):''}<span class="dot ${p.busy?'busy':''}"></span><div class="pn"><b>${esc(p.nom)}${p.ready&&!p.busy?' <span class="rdy">Prêt</span>':''}</b><small>${esc(p.ecole||'')}${p.busy?(p.ecole?' · ':'')+'en partie':''}</small></div><button class="pick ${SEL.has(p.id)?'on':''}" data-act="opick" data-id="${esc(p.id)}" ${p.busy?'disabled':''} aria-label="Choisir">${SEL.has(p.id)?'✓':''}</button></div>`).join('')
    :`<p class="note">Personne d'autre pour l'instant. Donne le code <b style="color:var(--gold)">${ROOM}</b> à tes amis.</p>`}
-  <div class="lbl">Partie</div><div class="opts"><div class="seg">${[5,10,15,20].map(l=>`<button data-act="olen" data-l="${l}" class="${(S.olen||10)===l?'on':''}">${l} q.</button>`).join('')}</div></div>
+  <div class="lbl">Format</div><div class="opts"><div class="seg">${[['classic','Classique'],['blitz','Blitz'],['tourney','Tournoi']].map(([v,t])=>`<button data-act="ofmt" data-f="${v}" class="${(S.ofmt||'classic')===v?'on':''}">${t}</button>`).join('')}</div></div>
+  <small style="display:block;color:var(--mut);margin-top:6px">${FMTTXT[S.ofmt||'classic']}</small>
+  ${(S.ofmt||'classic')==='tourney'?'':`<div class="lbl">Nombre de questions</div><div class="opts"><div class="seg">${[5,10,15,20,0].map(l=>`<button data-act="olen" data-l="${l}" class="${(S.olen??10)===l?'on':''}">${l?l+' q.':'Toutes'}</button>`).join('')}</div></div>`}
   <div class="lbl">Ma façon de répondre</div><div class="opts"><div class="seg"><button data-act="omode" data-m="choix" class="${mic?'':'on'}">Choix A B C D</button><button data-act="omode" data-m="micro" class="${mic?'on':''}" ${SR?'':'disabled'}>Au micro</button></div></div>
   <div id="ost" class="note">${Date.now()-OSTAT.at<10000?esc(OSTAT.t):''}</div></div>`;
 }
 // ---------- partie de groupe : l'hôte arbitre, nombre de joueurs illimité ----------
-const QDUR=22000;
+const QDUR=22000,RND=5;
+const FMTTXT={classic:'22 secondes par question, à ton rythme.',blitz:'9 secondes par question, ça va vite !',tourney:'Manches de 5 questions : le dernier de chaque manche est éliminé, jusqu\'au champion.'};
+const FMTN={classic:'Classique',blitz:'Blitz',tourney:'Tournoi'};
+const durOf=f=>f==='blitz'?9000:QDUR;
 function packQ(q){const ch=choicesFor(q);return{c:q.c,q:q.clues?q.clues.join(' '):q.q,a:answerOf(q),k:q.k||autoKeys(answerOf(q)),ch,p:10}}
 function oClr(){if(!O)return;clearTimeout(O.tm);clearTimeout(O.grace);clearTimeout(O.ltm);clearInterval(O.bi);try{rec&&rec.abort()}catch(e){}rec=null}
 function stopOther(){stopTimer();G=null;if(D){dClear();D=null}speechSynthesis.cancel();toasts=[];drawLayer()}
@@ -655,33 +660,34 @@ function onNet(m){
     if(m.t==='gjoin'){if(!(m.from in O.sc))O.sc[m.from]=0;O.names[m.from]=m.nom;O.av[m.from]=m.av||0;if(O.away)delete O.away[m.from];gList();
       if(O.phase==='lobby'){oRender();tgtCheck();return}
       // arrivée ou retour en cours de partie : on lui envoie l'état actuel
-      NET.send({t:'gsync',to:m.from,gid:O.gid,deck:O.deck,sc:O.sc,names:O.names,av:O.av,away:O.away||{},i:O.i,phase:O.phase,left:O.phase==='read'?O.end-Date.now():0,locked:O.locked||{},done:O.done||0});
+      NET.send({t:'gsync',to:m.from,gid:O.gid,fmt:O.fmt,elim:O.elim||{},deck:O.deck,sc:O.sc,names:O.names,av:O.av,away:O.away||{},i:O.i,phase:O.phase,left:O.phase==='read'?O.end-Date.now():0,locked:O.locked||{},done:O.done||0});
       NET.update();oRender();return}
     if(m.t==='gno'&&O.targets&&O.phase==='lobby'){O.no=O.no||{};O.no[m.from]=1;toast(esc((PEERS[m.from]?.nom||'Un ami')+' a refusé le défi.'),null,4000);tgtCheck();return}
     if(m.t==='wait'){O.waiting=O.waiting||{};O.waiting[m.from]=m.nom;const box=$('#emos');if(box){const d=document.createElement('div');d.className='emo txt';d.innerHTML=`${avImg(m.av,'eav')}<span>${esc(m.nom)}</span>t'attend pour la prochaine partie`;box.appendChild(d);setTimeout(()=>d.remove(),4000)}else toast(`<b>${esc(m.nom)}</b> t'attend pour la prochaine partie`,null,6000);if(O.over)oEnd(O.sc);return}
-    if(m.t==='gwatch'){O.watch=O.watch||{};O.watch[m.from]=m.nom;NET.send({t:'gsync',to:m.from,gid:O.gid,deck:O.deck,sc:O.sc,names:O.names,av:O.av,away:O.away||{},i:O.i,phase:O.phase,left:O.phase==='read'?O.end-Date.now():0,locked:O.locked||{},done:O.done||0,lobbyLeft:O.phase==='lobby'?O.lobbyEnd-Date.now():0});oRender();return}
+    if(m.t==='gwatch'){O.watch=O.watch||{};O.watch[m.from]=m.nom;NET.send({t:'gsync',to:m.from,gid:O.gid,fmt:O.fmt,elim:O.elim||{},deck:O.deck,sc:O.sc,names:O.names,av:O.av,away:O.away||{},i:O.i,phase:O.phase,left:O.phase==='read'?O.end-Date.now():0,locked:O.locked||{},done:O.done||0,lobbyLeft:O.phase==='lobby'?O.lobbyEnd-Date.now():0});oRender();return}
     if(m.t==='gquit'){if(O.watch?.[m.from]){delete O.watch[m.from];oRender();return}if(O.phase==='lobby')delete O.sc[m.from];else{O.away=O.away||{};O.away[m.from]=true}gList();if(O.phase==='lobby'&&O.targets)oAbort((O.names[m.from]||'Ton ami')+' a quitté.');else{if(O.phase==='read')hostAllLocked();oRender()}return}
     if(m.t==='ans')hostAns(m.from,m.i,m);
     return}
   if(m.t==='emo'){showEmo(m.from,m.e);return}
   if(m.t==='glist'){O.sc=m.sc;O.names=m.names;O.av=m.av||{};O.away=m.away||{};oRender()}
-  else if(m.t==='gsync'){Object.assign(O,{deck:m.deck,sc:m.sc,names:m.names,av:m.av||{},away:m.away||{},done:m.done||0});stopOther();
+  else if(m.t==='gsync'){Object.assign(O,{fmt:m.fmt||'classic',elim:m.elim||{},deck:m.deck,sc:m.sc,names:m.names,av:m.av||{},away:m.away||{},done:m.done||0});stopOther();
     if(m.phase==='lobby'){O.phase='lobby';O.lobbyEnd=Date.now()+(m.lobbyLeft||0);oRender();return}
     if(m.phase==='read'&&m.left>1500){oShowQ(m.i,m.left);Object.assign(O.locked,m.locked||{})}else{O.i=m.i;O.phase='wait';oRender()}}
-  else if(m.t==='gstart'){O.sc=m.sc;O.names=m.names;O.av=m.av||{};O.phase='wait';stopOther();oRender();say('C\'est parti !')}
+  else if(m.t==='gstart'){O.sc=m.sc;O.names=m.names;O.av=m.av||{};O.fmt=m.fmt||O.fmt;O.phase='wait';stopOther();oRender();say('C\'est parti !')}
   else if(m.t==='q')oShowQ(m.i,m.dur);
   else if(m.t==='miss')oMiss(m.who);
   else if(m.t==='res')oRes(m);
+  else if(m.t==='elim')oElim(m);
   else if(m.t==='end')oEnd(m.sc);
   else if(m.t==='gcancel')oAbort(m.why==='few'?'Partie annulée : il faut au moins 2 joueurs prêts.':'La partie a été annulée.');
 }
 function oLaunch(targets){
   if(O&&!O.over)return;
   const base=pool().filter(q=>!q.spell);
-  const deck=shuffle(base.length?base:SHEET.filter(q=>!q.spell)).slice(0,S.olen||10).map(packQ),gid=myId+Date.now();
+  const fmt=S.ofmt||'classic',src=shuffle(base.length?base:SHEET.filter(q=>!q.spell)),deck=src.slice(0,fmt==='tourney'?60:((S.olen??10)||src.length)).map(packQ),gid=myId+Date.now();
   toasts=[];drawLayer();READY=true;
-  O={gid,host:myId,isHost:true,lobbyEnd:Date.now()+LOBBY,deck,sc:{[myId]:0},names:{[myId]:myNom()},av:{[myId]:P?.av||0},phase:'lobby',over:false,i:-1,targets};
-  NET.send({t:'ginv',to:targets||undefined,gid,nom:myNom(),av:P?.av||0,lobbyLeft:LOBBY,deck,duel:!!targets});NET.update();oRender();
+  O={gid,host:myId,isHost:true,fmt,lobbyEnd:Date.now()+LOBBY,deck,sc:{[myId]:0},names:{[myId]:myNom()},av:{[myId]:P?.av||0},phase:'lobby',over:false,i:-1,targets};
+  NET.send({t:'ginv',to:targets||undefined,gid,nom:myNom(),av:P?.av||0,lobbyLeft:LOBBY,fmt,deck,duel:!!targets});NET.update();oRender();
   O.lt=setInterval(()=>{const e=$('#lobcount');if(e&&O)e.textContent=Math.max(0,Math.ceil((O.lobbyEnd-Date.now())/1000))+' s'},500);
   setTimeout(()=>{if(!O||O.gid!==gid||O.phase!=='lobby')return;clearInterval(O.lt);
     if(Object.keys(O.sc).length>=2)gStart();else{NET.send({t:'gcancel',gid,why:'few'});oAbort('Partie annulée : il faut au moins 2 joueurs prêts.')}},LOBBY);
@@ -689,10 +695,10 @@ function oLaunch(targets){
 function tgtCheck(){if(!O||!O.targets||O.phase!=='lobby')return;const resp=O.targets.filter(id=>id in O.sc||O.no?.[id]);
   if(resp.length<O.targets.length)return;Object.keys(O.sc).length>=2?gStart():oAbort(O.targets.length>1?'Personne n\'a accepté le défi.':(PEERS[O.targets[0]]?.nom||'Ton ami')+' a refusé le défi.')}
 function gList(){NET.send({t:'glist',gid:O.gid,sc:O.sc,names:O.names,av:O.av,away:O.away||{}})}
-function gStart(){if(!O||Object.keys(O.sc).length<2)return;clearInterval(O.lt);O.phase='wait';setTimeout(()=>NET.update(),50);NET.send({t:'gstart',gid:O.gid,sc:O.sc,names:O.names,av:O.av});say('C\'est parti !');oRender();setTimeout(oNextQ,1800)}
+function gStart(){if(!O||Object.keys(O.sc).length<2)return;clearInterval(O.lt);O.phase='wait';setTimeout(()=>NET.update(),50);NET.send({t:'gstart',gid:O.gid,sc:O.sc,names:O.names,av:O.av,fmt:O.fmt});say('C\'est parti !');oRender();setTimeout(oNextQ,1800)}
 function oNextQ(){if(!O||O.over)return;const i=O.i+1;
   if(i>=O.deck.length){NET.send({t:'end',gid:O.gid,sc:O.sc});oEnd(O.sc);return}
-  NET.send({t:'q',gid:O.gid,i,dur:QDUR});oShowQ(i,QDUR)}
+  const d=durOf(O.fmt);NET.send({t:'q',gid:O.gid,i,dur:d});oShowQ(i,d)}
 function oShowQ(i,dur){if(O&&O.isHost)setTimeout(()=>NET&&NET.update(),60);
   oClr();Object.assign(O,{i,phase:'read',locked:{},marks:{},mine:null,listening:false,heard:'',res:null,pend:[],shown:performance.now(),end:Date.now()+dur,dur});
   oRender();say(O.deck[i].q);
@@ -700,8 +706,8 @@ function oShowQ(i,dur){if(O&&O.isHost)setTimeout(()=>NET&&NET.update(),60);
   if(O.isHost)O.tm=setTimeout(()=>{if(O&&O.phase==='read'&&O.i===i)hostResolve(null)},dur+600);
 }
 function oSend(a){const i=O.i;a.rt=performance.now()-O.shown;O.isHost?hostAns(myId,i,a):NET.send({t:'ans',to:O.host,gid:O.gid,i,...a})}
-function oTap(idx){if(!O||O.spectator||O.phase!=='read'||O.locked[myId]||O.mine!=null)return;O.mine=idx;navigator.vibrate&&navigator.vibrate(40);speechSynthesis.cancel();oRender();oSend({v:idx})}
-function oBuzz(){if(!O||O.spectator||O.phase!=='read'||O.locked[myId]||O.mine!=null||O.listening)return;speechSynthesis.cancel();navigator.vibrate&&navigator.vibrate(50);O.listening=true;O.heard='';oRender();oListen()}
+function oTap(idx){if(!O||O.spectator||O.elim?.[myId]||O.phase!=='read'||O.locked[myId]||O.mine!=null)return;O.mine=idx;navigator.vibrate&&navigator.vibrate(40);speechSynthesis.cancel();oRender();oSend({v:idx})}
+function oBuzz(){if(!O||O.spectator||O.elim?.[myId]||O.phase!=='read'||O.locked[myId]||O.mine!=null||O.listening)return;speechSynthesis.cancel();navigator.vibrate&&navigator.vibrate(50);O.listening=true;O.heard='';oRender();oListen()}
 function oListen(){
   const q=O.deck[O.i];let done=false;
   const fin=ok=>{if(done)return;done=true;clearTimeout(O.ltm);try{rec&&rec.abort()}catch(e){}rec=null;if(!O||O.phase!=='read')return;O.listening=false;O.mine=ok?'ok':'x';oRender();oSend({ok})};
@@ -715,7 +721,7 @@ function oListen(){
     try{r.start()}catch(e){}};
   start('fr-CA');
 }
-function hostAns(who,i,a){if(!O||O.phase!=='read'||i!==O.i||O.locked[who]||!(who in O.sc))return;O.pend.push({who,a});if(!O.grace)O.grace=setTimeout(hostJudge,350)}
+function hostAns(who,i,a){if(!O||O.phase!=='read'||i!==O.i||O.locked[who]||O.elim?.[who]||!(who in O.sc))return;O.pend.push({who,a});if(!O.grace)O.grace=setTimeout(hostJudge,350)}
 function hostJudge(){
   O.grace=null;O.pend.sort((x,y)=>x.a.rt-y.a.rt);const q=O.deck[O.i];
   while(O.pend.length&&O.phase==='read'){const {who,a}=O.pend.shift();if(O.locked[who])continue;
@@ -724,35 +730,49 @@ function hostJudge(){
     NET.send({t:'miss',gid:O.gid,who});oMiss(who)}
   hostAllLocked();
 }
-function hostAllLocked(){if(O&&O.phase==='read'&&Object.keys(O.sc).filter(id=>!O.away?.[id]).every(id=>O.locked[id]))hostResolve(null)}
+function hostAllLocked(){if(O&&O.phase==='read'&&Object.keys(O.sc).filter(id=>!O.away?.[id]&&!O.elim?.[id]).every(id=>O.locked[id]))hostResolve(null)}
 function hostResolve(win){if(!O||O.phase!=='read')return;if(win)O.sc[win]=(O.sc[win]||0)+O.deck[O.i].p;
-  const m={t:'res',gid:O.gid,i:O.i,win,sc:O.sc};NET.send(m);oRes(m);setTimeout(oNextQ,3000)}
+  const m={t:'res',gid:O.gid,i:O.i,win,sc:O.sc};NET.send(m);oRes(m);
+  if(O.fmt==='tourney'&&(O.i+1)%RND===0)setTimeout(tourneyCut,2500);else setTimeout(oNextQ,O.fmt==='blitz'?1500:3000)}
+// tournoi : à la fin de chaque manche, le ou les derniers sont éliminés
+function tourneyCut(){
+  if(!O||O.over)return;const act=Object.keys(O.sc).filter(id=>!O.away?.[id]&&!O.elim?.[id]);
+  if(act.length<=1){NET.send({t:'end',gid:O.gid,sc:O.sc});oEnd(O.sc);return}
+  const lo=Math.min(...act.map(id=>O.sc[id])),out=act.filter(id=>O.sc[id]===lo);
+  const ids=out.length<act.length?out:[];const m={t:'elim',gid:O.gid,ids,round:(O.i+1)/RND};NET.send(m);oElim(m);
+  const left=act.length-ids.length;setTimeout(()=>{if(!O||O.over)return;if(left<=1){NET.send({t:'end',gid:O.gid,sc:O.sc});oEnd(O.sc)}else oNextQ()},4500);
+}
+function oElim(m){if(!O)return;O.elim=O.elim||{};m.ids.forEach(id=>O.elim[id]=true);O.phase='cut';O.cut=m;oRender();
+  const n=m.ids.map(id=>O.names[id]).join(' et ');
+  say(m.ids.includes(myId)?'Fin de la manche. Tu es éliminé.':m.ids.length?'Fin de la manche. '+n+(m.ids.length>1?' sont éliminés.':' est éliminé.'):'Fin de la manche. Égalité, personne n\'est éliminé.')}
 function oMiss(who){if(!O)return;O.locked[who]=true;O.marks[who]='x';
   if(who===myId){beep(200,.3);navigator.vibrate&&navigator.vibrate([60,60,60]);O.listening=false;try{rec&&rec.abort()}catch(e){}}
   oRender()}
 function oRes(m){if(!O)return;oClr();O.done=(O.done||0)+O.deck[O.i].p;if(O.isHost)setTimeout(()=>NET&&NET.update(),60);O.phase='show';O.sc=m.sc;O.res=m;if(m.win)O.marks[m.win]='ok';oRender();
   const a=O.deck[O.i].a;if(m.win===myId){beep(1320,.12);setTimeout(()=>beep(1760,.15),130);say('Bravo ! '+a)}else if(m.win)say(O.names[m.win]+' a le point. '+a);else say('La réponse était : '+a)}
 function board(){const ids=Object.keys(O.sc).sort((a,b)=>O.sc[b]-O.sc[a]);
-  return `<div class="board">${ids.map(id=>`<div class="sb ${id===myId?'self':''} ${O.away?.[id]?'away':''} ${O.marks?.[id]||''}">${avImg(O.av?.[id],'sav')}<span>${esc(O.names[id]||'?')}</span><b>${pct(O.sc[id],O.done||0)} %</b>${O.marks?.[id]==='x'?'<i>✗</i>':O.marks?.[id]==='ok'?'<i>✓</i>':''}</div>`).join('')}</div>`}
+  return `<div class="board">${ids.map(id=>`<div class="sb ${id===myId?'self':''} ${O.away?.[id]||O.elim?.[id]?'away':''} ${O.marks?.[id]||''}">${avImg(O.av?.[id],'sav')}<span>${esc(O.names[id]||'?')}</span><b>${pct(O.sc[id],O.done||0)} %</b>${O.marks?.[id]==='x'?'<i>✗</i>':O.marks?.[id]==='ok'?'<i>✓</i>':''}</div>`).join('')}</div>`}
 function oRender(){
   if(!O)return;const n=Object.keys(O.sc).length,hostN=esc(O.names[O.host]||'L\'hôte');
   if(O.phase==='lobby'){
     app.innerHTML=`<div class="room"><div class="top"><button class="x" data-act="oquit" aria-label="Annuler">✕</button><h2 style="font-size:20px">${O.targets?'Défi envoyé':'Partie de salle'}</h2></div>
     <div class="codebox"><small>${O.spectator?'Tu regardes · la partie commence dans':'Départ dans'} <b id="lobcount">${Math.max(0,Math.ceil(((O.lobbyEnd||Date.now())-Date.now())/1000))} s</b> · minimum 2 joueurs prêts</small>
-    <small style="display:block;margin-top:6px">${O.isHost?(O.targets?'Défi envoyé, en attente des réponses':'Les joueurs prêts s\'inscrivent'):O.spectator?'':'Tu es inscrit !'}</small><div class="code" style="font-size:40px;letter-spacing:2px;padding:0">${n}</div><small>joueur${n>1?'s':''} · ${O.deck.length} questions</small></div>
+    <small style="display:block;margin-top:6px">${O.isHost?(O.targets?'Défi envoyé, en attente des réponses':'Les joueurs prêts s\'inscrivent'):O.spectator?'':'Tu es inscrit !'}</small><div class="code" style="font-size:40px;letter-spacing:2px;padding:0">${n}</div><small>joueur${n>1?'s':''} · ${FMTN[O.fmt||'classic']}${O.fmt==='tourney'?'':' · '+O.deck.length+' questions'}</small></div>
     <div class="lbl">Inscrits</div>${Object.keys(O.sc).map(id=>`<div class="peer">${avImg(O.av?.[id],'pav')}<span class="dot"></span><div class="pn"><b>${esc(O.names[id])}${id===O.host?' (hôte)':''}</b></div></div>`).join('')}
     ${O.isHost?(O.targets&&O.targets.length<2?'':`<button class="btn pri" style="width:100%;margin-top:16px;padding:16px;font-size:17px" data-act="ostart" ${n<2?'disabled':''}>${n<2?'En attente de joueurs…':'Commencer ('+n+' joueurs)'}</button>`):`<p class="note">En attente que ${hostN} commence…</p>`}</div>`;
     return}
   const q=O.deck[O.i];let z='';
   if(!q)z='<div class="state">Préparez-vous…</div>';
   else if(O.phase==='show'){const r=O.res;z=`<div class="state ${r.win===myId?'win':r.win?'lose':''}">${r.win?avImg(O.av?.[r.win],'wav'):''}<small>${r.win===myId?'Bonne réponse !':r.win?esc(O.names[r.win])+' a eu le point':'Personne n\'a trouvé'}</small><div class="big2">${esc(q.a)}</div></div>`}
+  else if(O.phase==='cut'){const c=O.cut;z=`<div class="state ${c.ids.includes(myId)?'lose':''}"><small>Fin de la manche ${c.round}</small><div class="big2">${c.ids.includes(myId)?'Tu es éliminé·e':c.ids.length?c.ids.map(id=>esc(O.names[id])).join(', ')+(c.ids.length>1?' éliminés':' éliminé·e'):'Égalité : personne n\'est éliminé'}</div><small>${c.ids.includes(myId)?'Tu peux regarder la suite du tournoi.':Object.keys(O.sc).filter(id=>!O.elim?.[id]&&!O.away?.[id]).length+' joueurs encore en lice'}</small></div>`}
+  else if(O.elim?.[myId])z=`<div class="state">Éliminé·e<small>Tu regardes la suite du tournoi.</small></div>`;
   else if(O.spectator)z=`<div class="state">Tu regardes la partie<small>Coche « Prêt » dans la salle pour jouer la prochaine.</small></div>`;
   else if(O.locked[myId])z=`<div class="state lose">Raté !<small>La question reste ouverte pour les autres.</small></div>`;
   else if(O.mine!=null)z=`<div class="state">${O.mine==='ok'?'Bonne réponse ! Vérification…':'Réponse envoyée…'}</div>`;
   else if(O.listening)z=`<div class="state talk"><div class="mic"></div><div>Parle ! Les autres ne t'entendent pas.</div><div class="heard" id="oheard">${O.heard?'« '+esc(O.heard)+' »':''}</div><button class="btn ghost" data-act="opass">Je passe</button></div>`;
   else if(S.omode==='micro'&&SR)z=`<button class="buzz obuzz" data-obuzz="1">BUZZ</button>`;
   else z=`<div class="fast">${q.ch.map((c,i)=>`<button class="fbtn" data-ofast="${i}"><b>${'ABCD'[i]}</b><span>${esc(c)}</span></button>`).join('')}</div>`;
-  app.innerHTML=`<div class="oplay p0"><div class="top"><button class="x" data-act="oquit" aria-label="Quitter">✕</button><div class="bar"><i id="obar" style="width:${O.phase==='read'?Math.max(0,(O.end-Date.now())/O.dur*100):0}%"></i></div><span class="n">${Math.max(1,O.i+1)} / ${O.deck.length}</span></div>
+  app.innerHTML=`<div class="oplay p0"><div class="top"><button class="x" data-act="oquit" aria-label="Quitter">✕</button><div class="bar"><i id="obar" style="width:${O.phase==='read'?Math.max(0,(O.end-Date.now())/O.dur*100):0}%"></i></div><span class="n">${O.fmt==='tourney'?`Manche ${Math.floor(Math.max(0,O.i)/RND)+1} · ${Math.max(0,O.i)%RND+1}/${RND}`:`${Math.max(1,O.i+1)} / ${O.deck.length}`}</span></div>
   ${board()}<div id="emos"></div>${q?`<div class="card ocard"><span class="tag">${esc(q.c)}</span><div class="q">${esc(q.q)}</div>${z}</div>`:z}${emoBar()}</div>`;
 }
 const EMOS=['👏','🔥','😂','😮','😅','😱','👍','🎉'];
@@ -766,7 +786,7 @@ function oEnd(sc){
   const ids=Object.keys(sc).sort((a,b)=>sc[b]-sc[a]),rank=ids.indexOf(myId)+1,top=sc[ids[0]],win=ids.filter(id=>sc[id]===top);
   say(win.includes(myId)?(win.length>1?'Égalité au premier rang !':'Victoire !'):(O.names[ids[0]]+' gagne la partie.'));
   app.innerHTML=`<div class="card end"><img src="icon-192.webp" alt=""><div class="big">${rank===1?(win.length>1?'Égalité !':'Victoire !'):rank+'e place'}</div>
-  <ol class="podium">${ids.map((id,k)=>`<li class="${id===myId?'self':''}"><span>${k<3?['🥇','🥈','🥉'][k]:k+1+'.'}</span>${avImg(O.av?.[id],'pav')}<b>${esc(O.names[id]||'?')}</b><em>${pct(sc[id],O.deck.reduce((t,q)=>t+q.p,0))} %</em></li>`).join('')}</ol>
+  <ol class="podium">${ids.map((id,k)=>`<li class="${id===myId?'self':''}"><span>${k<3?['🥇','🥈','🥉'][k]:k+1+'.'}</span>${avImg(O.av?.[id],'pav')}<b>${esc(O.names[id]||'?')}</b><em>${pct(sc[id],O.done||O.deck.reduce((t,q)=>t+q.p,0))} %</em></li>`).join('')}</ol>
   ${O.isHost&&O.waiting&&Object.keys(O.waiting).length?`<p class="note" style="text-align:center">Ils t'attendent : <b style="color:var(--gold)">${Object.values(O.waiting).map(esc).join(', ')}</b></p>`:''}<div class="row" style="justify-content:center"><button class="btn pri" data-act="ogroup">Nouvelle partie</button><button class="btn" data-act="oroom">Retour à la salle</button></div>${emoBar()}</div><div id="emos"></div>`;
 }
 function oAbort(msg){if(!O)return;oClr();clearInterval(O.lt);O=null;if(NET)NET.update();roomRender(true);oStatus(msg);toast(esc(msg),null,6000)}
@@ -790,6 +810,7 @@ Object.assign(ACT,{
   oshare(){const url=`${location.origin}/s/${ROOM}`,text=`Viens jouer avec moi à Génie en herbe ! Salle ${ROOM}`;
     if(navigator.share)navigator.share({title:'Défie-moi à Génie en herbe !',url}).catch(()=>{});else navigator.clipboard?.writeText(text+'\n'+url).then(()=>oStatus('Lien copié !'),()=>{})},
   olen(b){S.olen=+b.dataset.l;save();roomRender(true)},
+  ofmt(b){S.ofmt=b.dataset.f;save();roomRender(true)},
   omode(b){if(b.dataset.m!=='micro'){S.omode='choix';save();roomRender(true);return}
     micOK().then(ok=>{S.omode=ok?'micro':'choix';save();roomRender(true);if(!ok)oStatus('Micro refusé ou indisponible : réponses par choix.')})},
   ogroup(){if(O&&O.over)O=null;oLaunch(null)},
@@ -810,7 +831,7 @@ Object.assign(ACT,{
     NET.send({t:'gjoin',to:h.id,gid:g.gid,nom:myNom(),av:P?.av||0});NET.update();oRender();
     setTimeout(()=>{if(O&&O.gid===g.gid&&!O.deck.length)oAbort('Impossible de rejoindre la partie.')},8000)},
   oacc(){const v=INV;if(!v)return;INV=null;READY=true;drawLayer();stopOther();if(O&&O.over)O=null;
-    O={gid:v.gid,host:v.from,isHost:false,lobbyEnd:Date.now()+(v.lobbyLeft||LOBBY),deck:v.deck,sc:{},names:{[v.from]:v.nom},av:{[v.from]:v.av||0},phase:'lobby',over:false,i:-1};
+    O={gid:v.gid,host:v.from,isHost:false,fmt:v.fmt||'classic',lobbyEnd:Date.now()+(v.lobbyLeft||LOBBY),deck:v.deck,sc:{},names:{[v.from]:v.nom},av:{[v.from]:v.av||0},phase:'lobby',over:false,i:-1};
     NET.send({t:'gjoin',to:v.from,gid:v.gid,nom:myNom(),av:P?.av||0});NET.update();oRender()},
   odec(){if(INV)NET.send({t:'gno',to:INV.from,gid:INV.gid});INV=null;drawLayer()},
   opass(){O&&O.fin&&O.fin(false)},
