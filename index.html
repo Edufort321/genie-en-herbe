@@ -218,6 +218,17 @@ textarea.in{font-size:14px;min-height:240px;font-family:ui-monospace,Menlo,monos
 .emo.txt{font-size:17px;font-weight:700;color:#fff;border-color:rgba(62,224,143,.5)}
 .emo span{font-size:13px;font-weight:600;color:var(--mut)}
 @keyframes emo{0%{opacity:0;transform:translateY(20px) scale(.6)}12%{opacity:1;transform:none}80%{opacity:1}100%{opacity:0;transform:translateY(-30px)}}
+.avgrid{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin:8px 0 4px}
+.avb{aspect-ratio:1;border-radius:50%;padding:0;border:3px solid transparent;background:rgba(10,16,50,.6);overflow:hidden;transition:.15s}
+.avb img,.av{width:100%;height:100%;object-fit:cover;transform:scale(1.08);display:block}
+.avb.on{border-color:var(--gold);box-shadow:0 0 16px rgba(255,194,26,.5);transform:scale(1.05)}
+.me.hasav{padding:0;background:none;overflow:hidden;border:2px solid var(--gold)}
+.meav{width:100%;height:100%;object-fit:cover;transform:scale(1.1)}
+.pav{width:40px;height:40px;border-radius:50%;object-fit:cover;flex:none;background:rgba(255,255,255,.06)}
+.tav{width:34px;height:34px;border-radius:50%;object-fit:cover;vertical-align:middle;margin-right:8px;float:left}
+.sav{width:22px;height:22px;border-radius:50%;object-fit:cover;margin:-2px 0 -2px -4px}
+.ovav{width:96px;height:96px;border-radius:50%;object-fit:cover;border:3px solid var(--gold)}
+#avpop .ovc{max-width:420px}#avpop h2{margin-top:0}
 .fold{margin-top:10px;border:1px solid var(--line);border-radius:16px;background:rgba(10,16,50,.55);overflow:hidden}
 .fold summary{list-style:none;display:flex;align-items:center;gap:10px;padding:13px 14px;cursor:pointer;font-weight:600;font-size:15px}
 .fold summary::-webkit-details-marker{display:none}
