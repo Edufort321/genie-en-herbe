@@ -507,15 +507,21 @@ const myNom=()=>QS.get('pn')||P?.nom||'Joueur';
 let NET=null,ROOM=null,PEERS={},O=null,INV=null,sbc=null;
 const CODECH='ABCDEFGHJKMNPQRSTUVWXYZ23456789',newCode=()=>Array.from({length:5},()=>CODECH[Math.random()*CODECH.length|0]).join('');
 function loadSB(){return window.supabase?Promise.resolve():new Promise((res,rej)=>{const s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js';s.onload=res;s.onerror=()=>rej(new Error('librairie Supabase non chargée'));document.head.appendChild(s)})}
-async function netJoin(code,onPeers,onMsg){
+async function netJoin(code,onPeers,onMsg,onDrop){
   const me=()=>({id:myId,nom:myNom(),ecole:P?.ecole||'',av:P?.av||0,busy:!!O});
   if(CFG.supabaseUrl&&CFG.supabaseKey){
     await loadSB();sbc=sbc||window.supabase.createClient(new URL(CFG.supabaseUrl).origin,CFG.supabaseKey,{auth:{persistSession:false}});
     const ch=sbc.channel('geh-'+code,{config:{presence:{key:myId},broadcast:{self:false}}});
     ch.on('presence',{event:'sync'},()=>{const out={};Object.values(ch.presenceState()).forEach(a=>a.forEach(m=>{if(m.id!==myId)out[m.id]=m}));onPeers(out)});
     ch.on('broadcast',{event:'m'},({payload})=>onMsg(payload));
-    await new Promise((res,rej)=>{const to=setTimeout(()=>rej(new Error('délai dépassé')),12000);ch.subscribe((st,err)=>{if(st==='SUBSCRIBED'){clearTimeout(to);ch.track(me());res()}else if(st==='CHANNEL_ERROR'||st==='TIMED_OUT'||st==='CLOSED'){clearTimeout(to);try{sbc.removeChannel(ch)}catch(e){}rej(new Error(st+(err?.message?' : '+err.message:'')))}})});
-    return {send:m=>ch.send({type:'broadcast',event:'m',payload:{...m,from:myId}}),update:()=>ch.track(me()),leave:()=>sbc.removeChannel(ch)};
+    let state='JOINING',ok=false,left=false;
+    await new Promise((res,rej)=>{const to=setTimeout(()=>rej(new Error('délai dépassé')),12000);ch.subscribe((st,err)=>{state=st;
+      if(st==='SUBSCRIBED'){clearTimeout(to);ch.track(me());if(!ok){ok=true;res()}}
+      else if(st==='CHANNEL_ERROR'||st==='TIMED_OUT'||st==='CLOSED'){clearTimeout(to);
+        if(!ok){try{sbc.removeChannel(ch)}catch(e){}rej(new Error(st+(err?.message?' : '+err.message:'')))}
+        else if(!left&&onDrop)onDrop()}})});   // connexion perdue après coup -> reconnexion
+    return {send:m=>ch.send({type:'broadcast',event:'m',payload:{...m,from:myId}}),update:()=>ch.track(me()),state:()=>state,
+      leave:()=>{left=true;sbc.removeChannel(ch)}};
   }
   // mode test sans serveur : onglets du même appareil
   const bc=new BroadcastChannel('geh-'+code),seen={},peersOf=()=>Object.fromEntries(Object.entries(seen).map(([k,v])=>[k,v.p]));
@@ -526,7 +532,7 @@ async function netJoin(code,onPeers,onMsg){
     if(m.t==='_hi'){const nw=!seen[m.from];seen[m.from]={p:m.p,at:Date.now()};if(nw)hello();onPeers(peersOf());return}
     onMsg(m)};
   hello();
-  return {send:m=>bc.postMessage({...m,from:myId}),update:hello,leave:()=>{bc.postMessage({t:'_bye',from:myId});clearInterval(iv);bc.close()}};
+  return {send:m=>bc.postMessage({...m,from:myId}),update:hello,state:()=>'SUBSCRIBED',leave:()=>{bc.postMessage({t:'_bye',from:myId});clearInterval(iv);bc.close()}};
 }
 function oStatus(t){const e=$('#ost');if(e)e.textContent=t}
 function onlineScreen(){
@@ -547,17 +553,34 @@ async function enterRoom(code,silent){
   code=code.toUpperCase().replace(/[^A-Z0-9]/g,'');if(code.length<4){oStatus('Le code doit avoir 5 caractères.');return}
   if(NET)leaveRoom();
   oStatus('Connexion…');
-  try{NET=await netJoin(code,onPeers,onNet)}
+  try{NET=await netJoin(code,onPeers,onNet,onDrop)}
   catch(e){if(!silent)oStatus('Connexion impossible ('+(e?.message||e)+'). Vérifie internet et réessaie.');return}
   ROOM=code;S.room=code;S.stay=true;save();joinedAt=Date.now();
   silent?pillUpd():roomRender(true);
 }
+// ---------- reconnexion automatique (Android coupe la connexion en arrière-plan) ----------
+let rejoining=false,conn='ok';
+function setConn(c){conn=c;pillUpd();const e=$('#conn');if(e){e.className='conn '+c;e.textContent=c==='ok'?'Connecté':'Reconnexion…'}}
+function onDrop(){setConn('re');setTimeout(rejoin,1500)}
+async function rejoin(){
+  if(!ROOM||rejoining)return;rejoining=true;setConn('re');
+  try{try{NET&&NET.leave()}catch(e){}NET=await netJoin(ROOM,onPeers,onNet,onDrop);joinedAt=Date.now();setConn('ok')}
+  catch(e){setTimeout(()=>{rejoining=false;rejoin()},4000);return}
+  rejoining=false;
+}
+document.addEventListener('visibilitychange',()=>{
+  if(document.visibilityState!=='visible'||!ROOM||!NET)return;
+  if(NET.state&&NET.state()!=='SUBSCRIBED')rejoin();else{try{NET.update()}catch(e){rejoin()}}
+});
+setInterval(()=>{if(ROOM&&NET&&document.visibilityState==='visible'){if(NET.state&&NET.state()!=='SUBSCRIBED')rejoin();else try{NET.update()}catch(e){}}},20000);
 function onPeers(p){
   const old=PEERS;PEERS=p;
   if(O&&!O.over){
-    if(!O.isHost&&!PEERS[O.host]){oAbort((O.names[O.host]||'L\'hôte')+' a quitté : partie terminée.');return}
-    if(O.isHost){let c=false;for(const id of Object.keys(O.sc))if(id!==myId&&!PEERS[id]){delete O.sc[id];c=true}
-      if(c){gList();if(O.phase==='read')hostAllLocked();oRender()}}
+    // tolérance : un joueur peut disparaître quelques secondes le temps de se reconnecter
+    const g=O.gid;
+    if(!O.isHost&&!PEERS[O.host])setTimeout(()=>{if(O&&O.gid===g&&!O.over&&!PEERS[O.host])oAbort((O.names[O.host]||'L\'hôte')+' a quitté : partie terminée.')},10000);
+    if(O.isHost)setTimeout(()=>{if(!O||O.gid!==g||O.over)return;let c=false;for(const id of Object.keys(O.sc))if(id!==myId&&!PEERS[id]){delete O.sc[id];c=true}
+      if(c){gList();if(O.phase==='read')hostAllLocked();oRender()}},10000);
   }
   if(Date.now()-joinedAt>2500&&!(O&&!O.over))Object.values(p).filter(x=>!old[x.id]).forEach(friendToast);
   roomRender(false);pillUpd();
@@ -575,17 +598,17 @@ function friendToast(p){
   beep(880,.09);setTimeout(()=>beep(1175,.12),110);navigator.vibrate&&navigator.vibrate([70,50,70]);
   toast(`${p.av?avImg(p.av,'tav'):''}<b>${esc(p.nom)}</b> est en ligne !<small>Salle ${esc(ROOM)}</small>`,p.id);
 }
-function pillUpd(){const e=$('#pill');if(!e)return;if(!ROOM){e.style.display='none';return}const n=Object.keys(PEERS).length;e.style.display='';e.innerHTML=`<span class="dot ${n?'':'off'}"></span>Salle ${esc(ROOM)} · ${n?n+' en ligne':'personne pour l\'instant'}`}
+function pillUpd(){const e=$('#pill');if(!e)return;if(!ROOM){e.style.display='none';return}const n=Object.keys(PEERS).length;e.style.display='';e.innerHTML=`<span class="dot ${conn!=='ok'?'busy':n?'':'off'}"></span>Salle ${esc(ROOM)} · ${conn!=='ok'?'reconnexion…':n?n+' en ligne':'personne pour l\'instant'}`}
 function leaveRoom(){if(O&&!O.over)ACT.oquit(true);try{NET&&NET.leave()}catch(e){}NET=null;ROOM=null;PEERS={};INV=null;O=null;toasts=[];drawLayer()}
 function invHTML(){return INV?`<div class="ov"><div class="ovc">${INV.av?avImg(INV.av,'ovav'):'<img src="icon-192.webp" alt="">'}<h2>${esc(INV.nom)} ${INV.duel?'te défie':'lance une partie'} !</h2><p>${INV.deck.length} questions${INV.duel?'':' · pour toute la salle'}</p><div class="row" style="justify-content:center"><button class="btn bad" data-act="odec">Non merci</button><button class="btn pri" data-act="oacc">Jouer !</button></div></div></div>`:''}
 function roomRender(force){
   if(!ROOM||(O&&!O.over))return;if(!force&&!$('.room'))return;
   const list=Object.values(PEERS).sort((a,b)=>a.nom.localeCompare(b.nom)),mic=S.omode==='micro';
-  app.innerHTML=`<div class="room"><div class="top"><button class="x" data-go="home" aria-label="Retour au jeu">←</button><h2 style="font-size:20px;flex:1">Salle</h2><button class="btn bad" style="padding:8px 12px;font-size:13px" data-act="oleave">Quitter la salle</button></div>
+  app.innerHTML=`<div class="room"><div class="top"><button class="x" data-go="home" aria-label="Retour au jeu">←</button><h2 style="font-size:20px;flex:1">Salle <span id="conn" class="conn ${conn}">${conn==='ok'?'Connecté':'Reconnexion…'}</span></h2><button class="btn bad" style="padding:8px 12px;font-size:13px" data-act="oleave">Quitter la salle</button></div>
   <p class="note" style="margin:0 0 10px">Tu peux retourner jouer : tu restes connecté et une alerte s'affiche quand un ami arrive ou lance une partie.</p>
   <div class="codebox"><small>Code de la salle</small><div class="code">${ROOM}</div><button class="btn pri" data-act="oshare">Inviter des amis (lien)</button><small style="display:block;margin-top:8px;text-transform:none;letter-spacing:0">Tes amis touchent le lien et arrivent directement ici. Ils peuvent aussi taper le code dans En ligne.</small></div>
   <button class="btn pri" style="width:100%;margin-top:14px;padding:16px;font-size:17px" data-act="ogroup" ${list.length?'':'disabled'}>Lancer une partie pour toute la salle</button>
-  <div class="lbl">En ligne maintenant (${list.length})</div>
+  <div class="lbl" style="display:flex;align-items:center">En ligne maintenant (${list.length})<button class="btn ghost" style="margin-left:auto;padding:4px 10px;font-size:12px" data-act="orefresh">Actualiser</button></div>
   ${list.length?list.map(p=>`<div class="peer">${p.av?avImg(p.av,'pav'):''}<span class="dot ${p.busy?'busy':''}"></span><div class="pn"><b>${esc(p.nom)}</b><small>${esc(p.ecole||'')}${p.busy?(p.ecole?' · ':'')+'en partie':''}</small></div><button class="btn" data-act="oinvite" data-id="${esc(p.id)}" ${p.busy?'disabled':''}>Défier</button></div>`).join('')
    :`<p class="note">Personne d'autre pour l'instant. Donne le code <b style="color:var(--gold)">${ROOM}</b> à tes amis.</p>`}
   <div class="lbl">Partie</div><div class="opts"><div class="seg">${[5,10,15,20].map(l=>`<button data-act="olen" data-l="${l}" class="${(S.olen||10)===l?'on':''}">${l} q.</button>`).join('')}</div></div>
@@ -711,6 +734,7 @@ app.addEventListener('pointerdown',e=>{const f=e.target.closest('[data-ofast]');
   if(e.target.closest('[data-obuzz]')){e.preventDefault();oBuzz()}});
 Object.assign(ACT,{
   ocreate(){enterRoom(newCode())},
+  orefresh(){rejoin()},
   ojoin(){enterRoom($('#ocode').value)},
   oleave(){leaveRoom();S.stay=false;save();onlineScreen()},
   oshare(){const url=`${location.origin}/s/${ROOM}`,text=`Viens jouer avec moi à Génie en herbe ! Salle ${ROOM}`;
