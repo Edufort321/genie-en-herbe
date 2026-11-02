@@ -671,16 +671,18 @@ function oRender(){
   ${board()}<div id="emos"></div>${q?`<div class="card ocard"><span class="tag">${esc(q.c)}</span><div class="q">${esc(q.q)}</div>${z}</div>`:z}${emoBar()}</div>`;
 }
 const EMOS=['👏','🔥','😂','😮','😅','😱','👍','🎉'];
-const emoBar=()=>`<div class="emobar">${EMOS.map((e,i)=>`<button data-act="oemo" data-e="${i}" aria-label="Réaction">${e}</button>`).join('')}</div>`;
+const QUICK=['Bien joué !','Bravo !','Trop fort !','Bonne chance !','On lâche pas !','GG !'];
+const emoBar=()=>`<div class="emobar">${EMOS.map((e,i)=>`<button data-act="oemo" data-e="${i}" aria-label="Réaction">${e}</button>`).join('')}</div>
+  <div class="quick">${QUICK.map((t,i)=>`<button data-act="oemo" data-e="${100+i}">${t}</button>`).join('')}</div>`;
 let lastEmo=0;
-function showEmo(id,i){const box=$('#emos');if(!box||!EMOS[i])return;const d=document.createElement('div');d.className='emo';d.innerHTML=`<span>${esc((O&&O.names[id])||'?')}</span>${EMOS[i]}`;box.appendChild(d);setTimeout(()=>d.remove(),2600)}
+function showEmo(id,i){const box=$('#emos'),t=i>=100?QUICK[i-100]:EMOS[i];if(!box||!t)return;const d=document.createElement('div');d.className='emo'+(i>=100?' txt':'');d.innerHTML=`<span>${esc((O&&O.names[id])||'?')}</span>${esc(t)}`;box.appendChild(d);setTimeout(()=>d.remove(),2600)}
 function oEnd(sc){
   if(!O)return;oClr();O.over=true;O.sc=sc;NET.update();
   const ids=Object.keys(sc).sort((a,b)=>sc[b]-sc[a]),rank=ids.indexOf(myId)+1,top=sc[ids[0]],win=ids.filter(id=>sc[id]===top);
   say(win.includes(myId)?(win.length>1?'Égalité au premier rang !':'Victoire !'):(O.names[ids[0]]+' gagne la partie.'));
   app.innerHTML=`<div class="card end"><img src="icon-192.webp" alt=""><div class="big">${rank===1?(win.length>1?'Égalité !':'Victoire !'):rank+'e place'}</div>
   <ol class="podium">${ids.map((id,k)=>`<li class="${id===myId?'self':''}"><span>${k<3?['🥇','🥈','🥉'][k]:k+1+'.'}</span><b>${esc(O.names[id]||'?')}</b><em>${sc[id]}</em></li>`).join('')}</ol>
-  <div class="row" style="justify-content:center"><button class="btn pri" data-act="ogroup">Nouvelle partie</button><button class="btn" data-act="oroom">Retour à la salle</button></div></div>`;
+  <div class="row" style="justify-content:center"><button class="btn pri" data-act="ogroup">Nouvelle partie</button><button class="btn" data-act="oroom">Retour à la salle</button></div>${emoBar()}</div><div id="emos"></div>`;
 }
 function oAbort(msg){if(!O)return;oClr();O=null;if(NET)NET.update();roomRender(true);oStatus(msg)}
 app.addEventListener('pointerdown',e=>{const f=e.target.closest('[data-ofast]');if(f&&!f.disabled){e.preventDefault();oTap(+f.dataset.ofast);return}

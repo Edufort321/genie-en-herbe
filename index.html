@@ -180,7 +180,7 @@ textarea.in{font-size:14px;min-height:240px;font-family:ui-monospace,Menlo,monos
 .oplay{display:flex;flex-direction:column;min-height:calc(100dvh - 30px)}
 .vs{display:flex;align-items:center;justify-content:space-around;padding:10px;margin-bottom:10px;border-radius:18px;background:rgba(10,16,50,.6);border:1px solid var(--line)}
 .vs div{text-align:center}.vs small{display:block;color:var(--mut);font-size:12px}.vs b{font-size:28px;color:var(--gold)}.vs span{font-weight:800;color:var(--mut)}
-.ocard{flex:1;display:flex;flex-direction:column}.ocard .fast{flex:1;max-height:300px;min-height:180px}.ocard .obuzz{max-height:260px}.ocard .fast,.ocard .state{margin-top:14px}
+.ocard{display:flex;flex-direction:column;min-height:0!important}.ocard .fast{flex:1;max-height:300px;min-height:180px}.ocard .obuzz{max-height:260px}.ocard .fast,.ocard .state{margin-top:14px}
 #layer{position:fixed;inset:0;pointer-events:none;z-index:9}#layer>*{pointer-events:auto}
 .toasts{position:absolute;left:10px;right:10px;top:max(10px,env(safe-area-inset-top));display:flex;flex-direction:column;gap:8px;pointer-events:none}
 .toast{pointer-events:auto;display:flex;align-items:center;gap:10px;padding:12px 12px 12px 14px;border-radius:18px;background:#10183f;border:1px solid var(--good);box-shadow:0 10px 40px rgba(0,0,0,.5),0 0 24px rgba(62,224,143,.25);animation:drop .3s}
@@ -203,6 +203,10 @@ textarea.in{font-size:14px;min-height:240px;font-family:ui-monospace,Menlo,monos
 .emobar button{flex:1;font-size:22px;padding:6px 0;border-radius:10px}.emobar button:active{transform:scale(1.3)}
 #emos{position:fixed;left:0;right:0;top:120px;z-index:6;pointer-events:none;display:flex;flex-direction:column;align-items:center;gap:6px}
 .emo{display:flex;align-items:center;gap:8px;padding:6px 14px;border-radius:99px;background:rgba(16,24,63,.92);border:1px solid var(--line);font-size:26px;animation:emo 2.6s ease forwards}
+.quick{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;justify-content:center}
+.quick button{padding:7px 12px;border-radius:99px;font-size:13px;font-weight:600;background:rgba(62,224,143,.12);border:1px solid rgba(62,224,143,.4);color:#c8ffe2}
+.quick button:active{transform:scale(.95)}
+.emo.txt{font-size:17px;font-weight:700;color:#fff;border-color:rgba(62,224,143,.5)}
 .emo span{font-size:13px;font-weight:600;color:var(--mut)}
 @keyframes emo{0%{opacity:0;transform:translateY(20px) scale(.6)}12%{opacity:1;transform:none}80%{opacity:1}100%{opacity:0;transform:translateY(-30px)}}
 .fold{margin-top:10px;border:1px solid var(--line);border-radius:16px;background:rgba(10,16,50,.55);overflow:hidden}
