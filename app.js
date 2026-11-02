@@ -20,7 +20,7 @@ function speak(q){
   if(!('speechSynthesis' in window))return;
   speechSynthesis.cancel();
   const v=speechSynthesis.getVoices().find(v=>/fr[-_]CA/i.test(v.lang))||speechSynthesis.getVoices().find(v=>/^fr/i.test(v.lang));
-  [q.spell,q.s,q.spell].forEach(t=>{const u=new SpeechSynthesisUtterance(t);u.lang='fr-CA';if(v)u.voice=v;u.rate=.9;speechSynthesis.speak(u)});
+  [q.spell,q.s,q.spell].forEach(t=>{const u=new SpeechSynthesisUtterance(t);u.lang='fr-CA';if(v)u.voice=v;u.rate=1.05;speechSynthesis.speak(u)});
 }
 const blank=q=>esc(q.s).replace(new RegExp(q.spell,'i'),'<b style="color:var(--gold)">_____</b>');
 
@@ -350,7 +350,7 @@ function beep(f=880,d=.15){try{actx=actx||new(window.AudioContext||window.webkit
 function say(t,cb){
   if(!('speechSynthesis' in window)){cb&&cb();return}
   speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(t),vs=speechSynthesis.getVoices();
-  const v=vs.find(v=>/fr[-_]CA/i.test(v.lang))||vs.find(v=>/^fr/i.test(v.lang));if(v)u.voice=v;u.lang='fr-CA';u.rate=1.05;
+  const v=vs.find(v=>/fr[-_]CA/i.test(v.lang))||vs.find(v=>/^fr/i.test(v.lang));if(v)u.voice=v;u.lang='fr-CA';u.rate=1.3;
   if(cb){let done=false;u.onend=u.onerror=()=>{if(!done){done=true;cb()}}}
   speechSynthesis.speak(u);
 }
