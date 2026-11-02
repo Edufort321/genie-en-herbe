@@ -6,6 +6,7 @@ const shuffle=a=>{a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.random(
 const norm=s=>String(s||'').toLowerCase().replace(/œ/g,'oe').replace(/æ/g,'ae').normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]+/g,' ').trim();
 const ARTS=/^(le|la|les|l|un|une|des|du|de|d|the|a)\s+/;
 const autoKeys=a=>{let n=norm(a);while(ARTS.test(n))n=n.replace(ARTS,'');return [n||norm(a)]};
+const pct=(a,b)=>b?Math.round(a/b*100):0;
 const ptsOf=(q,ci=0)=>q.clues?q.pts[Math.min(ci,q.pts.length-1)]:(q.p||10);
 const answerOf=q=>q.spell?q.spell:q.a;
 function isRight(q,val){
@@ -147,7 +148,7 @@ function revNext(knew){
 }
 function revEnd(){
   const ok=[...G.first.values()].filter(Boolean).length,t=G.first.size;
-  app.innerHTML=`<div class="card end"><img src="icon-192.webp" alt=""><div class="big">${ok}/${t}</div><p class="count">réussies du premier coup</p>
+  app.innerHTML=`<div class="card end"><img src="icon-192.webp" alt=""><div class="big">${pct(ok,t)} %</div><p class="count">réussies du premier coup (${ok} sur ${t})</p>
   <div class="row" style="justify-content:center"><button class="btn pri" data-act="revagain">Recommencer</button><button class="btn" data-go="home">Accueil</button></div></div>`;
   G.last=[...G.first.keys()];
 }
@@ -162,9 +163,9 @@ function exam(){
   stopTimer();
   const q=G.deck[G.i];if(!q)return examEnd();
   const r=G.res[G.i],more=q.clues&&G.ci<q.clues.length-1&&!G.done;
-  app.innerHTML=topBar(G.i,G.deck.length,`<span class="score">${G.score} pts</span>`)+`<div class="card">${qBlock(q,G.ci,G.done)}
+  app.innerHTML=topBar(G.i,G.deck.length,`<span class="score">${pct(G.score,G.res.reduce((t,r)=>t+ptsOf(r.q,0),0))} %</span>`)+`<div class="card">${qBlock(q,G.ci,G.done)}
   ${G.done&&r.mc?chBlock(q,r.val,true):''}
-  ${G.done?`<div class="ans ${r.ok?'ok':'ko'}"><small>${r.ok?'Bonne réponse · +'+r.pts+' pts':(r.val?'Pas tout à fait':'Temps écoulé ou passé')}</small><div>${esc(answerOf(q))}</div>${r.val&&!r.ok?`<div class="v">Ta réponse : ${esc(r.val)}</div>`:''}</div>
+  ${G.done?`<div class="ans ${r.ok?'ok':'ko'}"><small>${r.ok?'Bonne réponse !':(r.val?'Pas tout à fait':'Temps écoulé ou passé')}</small><div>${esc(answerOf(q))}</div>${r.val&&!r.ok?`<div class="v">Ta réponse : ${esc(r.val)}</div>`:''}</div>
    <div class="acts">${!r.ok&&r.val&&!r.mc?'<button class="btn good" data-act="override">J\'avais raison</button>':''}<button class="btn pri" data-act="next">${G.i+1<G.deck.length?'Question suivante':'Voir mon résultat'}</button></div>`
   :`${qcm()?chBlock(q,null,false):'<input class="in" id="ans" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Ta réponse…">'}
    ${S.timer?'<div class="timer" id="tm"><i style="width:100%"></i></div>':''}
@@ -188,7 +189,7 @@ function examEnd(){
   const best=store.get('geh-best',{});if(G.deck.length>=10&&(best[S.src]??-1)<pc){best[S.src]=pc;store.set('geh-best',best)}
   const msg=pc>=90?'Niveau finale provinciale.':pc>=75?'Solide. Ton équipe compte sur toi.':pc>=50?'Bon départ, encore un peu de révision.':'On révise et on revient plus fort.';
   app.innerHTML=`<div class="card end"><img src="icon-192.webp" alt=""><div class="big">${pc} %</div><p class="count">${msg}</p>
-  <div class="stats"><div><b>${G.score}</b>points / ${G.max}</div><div><b>${ok}/${G.res.length}</b>bonnes réponses</div></div>
+  <div class="stats"><div><b>${pct(ok,G.res.length)} %</b>de bonnes réponses</div><div><b>${ok}/${G.res.length}</b>bonnes réponses</div></div>
   <div class="row" style="justify-content:center">${miss.length?'<button class="btn gold" data-act="revmiss">Réviser mes erreurs</button>':''}<button class="btn pri" data-go="exam">Nouvel examen</button><button class="btn" data-go="home">Accueil</button></div>
   ${miss.length?`<ul class="miss">${miss.map(r=>`<li>${esc(r.q.q||(r.q.clues?r.q.clues.at(-1):'Épeler : '+r.q.s))}<span>${esc(answerOf(r.q))}</span>${r.val?`<i>Toi : ${esc(r.val)}</i>`:''}</li>`).join('')}</ul>`:''}</div>`;
   G.missed=miss.map(r=>r.q);
@@ -317,8 +318,8 @@ function profil(){
     afterProfile()});
 }
 ACT.profil=profil;
-const IQS=new URLSearchParams(location.search),INVITE=(IQS.get('salle')||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
-if(INVITE){try{IQS.delete('salle');history.replaceState(null,'',location.pathname+(IQS.toString()?'?'+IQS:''))}catch(e){}}
+const IQS=new URLSearchParams(location.search),INVITE=((location.pathname.match(/^\/s\/([A-Za-z0-9]{4,6})/)||[])[1]||IQS.get('salle')||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
+if(INVITE){try{IQS.delete('salle');history.replaceState(null,'','/'+(IQS.toString()?'?'+IQS:''))}catch(e){}}
 let pendingRoom=INVITE.length>=4?INVITE:'';
 function afterProfile(){if(pendingRoom){const c=pendingRoom;pendingRoom='';app.innerHTML='<div class="onb" style="padding-top:30vh"><div id="ost" class="note">Connexion à la salle '+esc(c)+'…</div></div>';enterRoom(c)}else home()}
 function boot(){
@@ -441,18 +442,18 @@ function dJudge(k,vals){
 function dReveal(){
   if(!D)return;Object.assign(D,{phase:'show',ok:null});dRender();const a=answerOf(D.deck[D.i]);say('La réponse était : '+a);later(dNext,3600);
 }
-function dNext(){if(!D)return;dClear();D.i++;D.i>=D.deck.length?dEnd():dStart()}
+function dNext(){if(!D)return;dClear();D.done=(D.done||0)+ptsOf(D.deck[D.i],0);D.i++;D.i>=D.deck.length?dEnd():dStart()}
 function dHalf(k){
   const q=D.deck[D.i],me=D.p[k],ans=answerOf(q);let z;
   if(D.phase==='ans'&&D.who===k){
     z=D.vocal?`<div class="state talk"><div class="mic"></div><div id="mst${k}">Parle maintenant !</div><div class="heard" id="heard${k}">${D.heard?'« '+esc(D.heard)+' »':''}</div><div class="row" style="margin-top:4px;justify-content:center"><button class="btn ghost" data-act="dmic" data-k="${k}">Relancer le micro</button><button class="btn ghost" data-act="dchoix">Choix A B C D</button></div></div>`
       :`<div class="choices">${D.ch.map((c,i)=>`<button class="choice" data-act="dpick" data-k="${k}" data-i="${i}"><b>${'ABCD'[i]}</b><span>${esc(c)}</span></button>`).join('')}</div>`;
   }else if(D.phase==='ans')z=`<div class="state">${esc(D.p[D.who].n)} répond…</div>`;
-  else if(D.phase==='show')z=`<div class="state ${D.ok===k?'win':D.ok===null?'':'lose'}"><small>${D.ok===k?'+'+D.gain+' points !':D.ok===null?'Personne':esc(D.p[D.ok].n)+' a eu le point'}</small><div class="big2">${esc(ans)}</div>${D.heard&&D.ok!==k&&D.who===k?`<small>Tu as dit « ${esc(D.heard)} »</small>`:''}</div>`;
+  else if(D.phase==='show')z=`<div class="state ${D.ok===k?'win':D.ok===null?'':'lose'}"><small>${D.ok===k?'Bonne réponse !':D.ok===null?'Personne':esc(D.p[D.ok].n)+' a eu le point'}</small><div class="big2">${esc(ans)}</div>${D.heard&&D.ok!==k&&D.who===k?`<small>Tu as dit « ${esc(D.heard)} »</small>`:''}</div>`;
   else if(D.tried[k])z=`<div class="state lose">Raté ! ${D.miss===k?esc(D.heard?'« '+D.heard+' »':''):''}<small>Réplique pour ${esc(D.p[1-k].n)}</small></div>`;
   else if(!D.vocal)z=`<div class="fast">${D.tried[1-k]?'<div class="rep">RÉPLIQUE !</div>':''}${D.ch.map((c,i)=>`<button class="fbtn" data-dfast="${k}" data-i="${i}" ${D.bad.includes(i)?'disabled':''}><b>${'ABCD'[i]}</b><span>${esc(c)}</span></button>`).join('')}</div>`;
   else z=`<button class="buzz" data-buzz="${k}">${D.tried[1-k]?'RÉPLIQUE !':'BUZZ'}</button>`;
-  return `<div class="half p${k} ${k===1?'flip':''}"><div class="hd"><span>${esc(me.n)}</span><b>${me.s}</b></div>
+  return `<div class="half p${k} ${k===1?'flip':''}"><div class="hd"><span>${esc(me.n)}</span><b>${pct(me.s,D.done||0)} %</b></div>
   <div class="dq">${q.clues?`<em>${q.pts[D.ci]} pts · indice ${D.ci+1}/${q.clues.length}</em> `:''}${esc(dText(q))}</div>${z}</div>`;
 }
 function dRender(){
@@ -460,10 +461,10 @@ function dRender(){
   app.innerHTML=`<div class="duel">${dHalf(1)}<div class="mid"><button class="x" data-act="dquit" aria-label="Quitter">✕</button><span>Question ${D.i+1}/${D.deck.length}</span><div class="bar"><i id="dbar" style="width:100%"></i></div><button class="x" data-act="dsay" aria-label="Relire">↻</button></div>${dHalf(0)}</div>`;
 }
 function dEnd(){
-  dClear();const [a,b]=D.p,w=a.s===b.s?null:(a.s>b.s?a:b);
+  dClear();const [a,b]=D.p;const w=a.s===b.s?null:(a.s>b.s?a:b);
   say(w?'Victoire de '+w.n+' !':'Égalité !');
   app.innerHTML=`<div class="card end"><img src="icon-192.webp" alt=""><div class="big">${w?esc(w.n):'Égalité'}</div><p class="count">${w?'remporte le duel':'Match nul, revanche ?'}</p>
-  <div class="stats"><div><b>${a.s}</b>${esc(a.n)}</div><div><b>${b.s}</b>${esc(b.n)}</div></div>
+  <div class="stats"><div><b>${pct(a.s,D.done)} %</b>${esc(a.n)}</div><div><b>${pct(b.s,D.done)} %</b>${esc(b.n)}</div></div>
   <div class="row" style="justify-content:center"><button class="btn pri" data-go="duel">Revanche</button><button class="btn" data-act="dhome">Accueil</button></div></div>`;
 }
 function dFast(k,i){
@@ -651,10 +652,10 @@ function hostResolve(win){if(!O||O.phase!=='read')return;if(win)O.sc[win]=(O.sc[
 function oMiss(who){if(!O)return;O.locked[who]=true;O.marks[who]='x';
   if(who===myId){beep(200,.3);navigator.vibrate&&navigator.vibrate([60,60,60]);O.listening=false;try{rec&&rec.abort()}catch(e){}}
   oRender()}
-function oRes(m){if(!O)return;oClr();O.phase='show';O.sc=m.sc;O.res=m;if(m.win)O.marks[m.win]='ok';oRender();
+function oRes(m){if(!O)return;oClr();O.done=(O.done||0)+O.deck[O.i].p;O.phase='show';O.sc=m.sc;O.res=m;if(m.win)O.marks[m.win]='ok';oRender();
   const a=O.deck[O.i].a;if(m.win===myId){beep(1320,.12);setTimeout(()=>beep(1760,.15),130);say('Bravo ! '+a)}else if(m.win)say(O.names[m.win]+' a le point. '+a);else say('La réponse était : '+a)}
 function board(){const ids=Object.keys(O.sc).sort((a,b)=>O.sc[b]-O.sc[a]);
-  return `<div class="board">${ids.map(id=>`<div class="sb ${id===myId?'self':''} ${O.marks?.[id]||''}"><span>${esc(O.names[id]||'?')}</span><b>${O.sc[id]}</b>${O.marks?.[id]==='x'?'<i>✗</i>':O.marks?.[id]==='ok'?'<i>✓</i>':''}</div>`).join('')}</div>`}
+  return `<div class="board">${ids.map(id=>`<div class="sb ${id===myId?'self':''} ${O.marks?.[id]||''}"><span>${esc(O.names[id]||'?')}</span><b>${pct(O.sc[id],O.done||0)} %</b>${O.marks?.[id]==='x'?'<i>✗</i>':O.marks?.[id]==='ok'?'<i>✓</i>':''}</div>`).join('')}</div>`}
 function oRender(){
   if(!O)return;const n=Object.keys(O.sc).length,hostN=esc(O.names[O.host]||'L\'hôte');
   if(O.phase==='lobby'){
@@ -665,7 +666,7 @@ function oRender(){
     return}
   const q=O.deck[O.i];let z='';
   if(!q)z='<div class="state">Préparez-vous…</div>';
-  else if(O.phase==='show'){const r=O.res;z=`<div class="state ${r.win===myId?'win':r.win?'lose':''}"><small>${r.win===myId?'+'+q.p+' points !':r.win?esc(O.names[r.win])+' a eu le point':'Personne n\'a trouvé'}</small><div class="big2">${esc(q.a)}</div></div>`}
+  else if(O.phase==='show'){const r=O.res;z=`<div class="state ${r.win===myId?'win':r.win?'lose':''}"><small>${r.win===myId?'Bonne réponse !':r.win?esc(O.names[r.win])+' a eu le point':'Personne n\'a trouvé'}</small><div class="big2">${esc(q.a)}</div></div>`}
   else if(O.locked[myId])z=`<div class="state lose">Raté !<small>La question reste ouverte pour les autres.</small></div>`;
   else if(O.mine!=null)z=`<div class="state">${O.mine==='ok'?'Bonne réponse ! Vérification…':'Réponse envoyée…'}</div>`;
   else if(O.listening)z=`<div class="state talk"><div class="mic"></div><div>Parle ! Les autres ne t'entendent pas.</div><div class="heard" id="oheard">${O.heard?'« '+esc(O.heard)+' »':''}</div><button class="btn ghost" data-act="opass">Je passe</button></div>`;
@@ -685,7 +686,7 @@ function oEnd(sc){
   const ids=Object.keys(sc).sort((a,b)=>sc[b]-sc[a]),rank=ids.indexOf(myId)+1,top=sc[ids[0]],win=ids.filter(id=>sc[id]===top);
   say(win.includes(myId)?(win.length>1?'Égalité au premier rang !':'Victoire !'):(O.names[ids[0]]+' gagne la partie.'));
   app.innerHTML=`<div class="card end"><img src="icon-192.webp" alt=""><div class="big">${rank===1?(win.length>1?'Égalité !':'Victoire !'):rank+'e place'}</div>
-  <ol class="podium">${ids.map((id,k)=>`<li class="${id===myId?'self':''}"><span>${k<3?['🥇','🥈','🥉'][k]:k+1+'.'}</span><b>${esc(O.names[id]||'?')}</b><em>${sc[id]}</em></li>`).join('')}</ol>
+  <ol class="podium">${ids.map((id,k)=>`<li class="${id===myId?'self':''}"><span>${k<3?['🥇','🥈','🥉'][k]:k+1+'.'}</span><b>${esc(O.names[id]||'?')}</b><em>${pct(sc[id],O.deck.reduce((t,q)=>t+q.p,0))} %</em></li>`).join('')}</ol>
   <div class="row" style="justify-content:center"><button class="btn pri" data-act="ogroup">Nouvelle partie</button><button class="btn" data-act="oroom">Retour à la salle</button></div>${emoBar()}</div><div id="emos"></div>`;
 }
 function oAbort(msg){if(!O)return;oClr();O=null;if(NET)NET.update();roomRender(true);oStatus(msg)}
@@ -695,8 +696,8 @@ Object.assign(ACT,{
   ocreate(){enterRoom(newCode())},
   ojoin(){enterRoom($('#ocode').value)},
   oleave(){leaveRoom();S.stay=false;save();onlineScreen()},
-  oshare(){const t=`Viens jouer à Génie en herbe avec moi ! Touche le lien pour entrer dans ma salle (code ${ROOM}) :\n${location.origin}/?salle=${ROOM}`;
-    if(navigator.share)navigator.share({text:t}).catch(()=>{});else navigator.clipboard?.writeText(t).then(()=>oStatus('Code copié !'),()=>{})},
+  oshare(){const url=`${location.origin}/s/${ROOM}`,text=`Viens jouer avec moi à Génie en herbe ! Salle ${ROOM}`;
+    if(navigator.share)navigator.share({title:'Défie-moi à Génie en herbe !',url}).catch(()=>{});else navigator.clipboard?.writeText(text+'\n'+url).then(()=>oStatus('Lien copié !'),()=>{})},
   olen(b){S.olen=+b.dataset.l;save();roomRender(true)},
   omode(b){if(b.dataset.m!=='micro'){S.omode='choix';save();roomRender(true);return}
     micOK().then(ok=>{S.omode=ok?'micro':'choix';save();roomRender(true);if(!ok)oStatus('Micro refusé ou indisponible : réponses par choix.')})},
