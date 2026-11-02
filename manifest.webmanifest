@@ -1,1 +1,26 @@
-{"name":"Génie en herbe","short_name":"Génie","start_url":"./","scope":"./","display":"standalone","background_color":"#070b24","theme_color":"#070b24","lang":"fr-CA","icons":[{"src":"icon-192.webp","sizes":"192x192","type":"image/webp","purpose":"any"}]}
+{
+  "id": "/",
+  "name": "Génie en herbe",
+  "short_name": "Génie en herbe",
+  "description": "Révise les questions de Génie en herbe du secondaire, passe des examens et affronte tes amis en duel ou en ligne.",
+  "lang": "fr-CA",
+  "dir": "ltr",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#070b24",
+  "theme_color": "#070b24",
+  "categories": ["education", "games", "kids"],
+  "prefer_related_applications": false,
+  "icons": [
+    {"src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any"},
+    {"src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any"},
+    {"src": "/icons/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable"}
+  ],
+  "screenshots": [
+    {"src": "/play-store/capture-1-accueil.png", "sizes": "1080x1920", "type": "image/png", "form_factor": "narrow", "label": "Accueil"},
+    {"src": "/play-store/capture-2-revision.png", "sizes": "1080x1920", "type": "image/png", "form_factor": "narrow", "label": "Révision"},
+    {"src": "/play-store/capture-6-en-ligne.png", "sizes": "1080x1920", "type": "image/png", "form_factor": "narrow", "label": "Partie en ligne"}
+  ]
+}

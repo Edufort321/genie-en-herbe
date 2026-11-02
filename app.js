@@ -303,7 +303,7 @@ function profil(){
     <label>Âge<input class="in" id="pa" type="number" inputmode="numeric" min="8" max="20" value="${esc(P?.age||'')}" placeholder="12"></label>
     <label>École<input class="in" id="pe" maxlength="60" value="${esc(P?.ecole||'')}" placeholder="Nom de ton école"></label>
     <button class="btn pri go" id="pgo" type="submit">${P?'Enregistrer':'Go'}</button>
-  </form><small>Ces infos restent seulement sur ton appareil.</small>
+  </form><small>Ces infos restent seulement sur ton appareil. <a href="confidentialite.html" style="color:var(--cyan)">Confidentialité</a></small>
   ${P?`<div class="lbl" style="margin-top:22px;text-align:left">Mes questions perso</div>
   <button class="btn" style="width:100%" data-go="import">Mes questions perso (sur ce téléphone)${mine().length?' · '+mine().length:''}</button>
   <small>Photographie une feuille ou tes notes de classe pour réviser dessus. Elles restent seulement sur ce téléphone.</small>
