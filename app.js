@@ -545,6 +545,7 @@ function onlineScreen(){
   <button class="btn pri go" data-act="ocreate">Créer une salle</button>
   <div class="lbl" style="margin-top:20px">ou rejoindre une salle</div>
   <div class="row" style="margin-top:6px"><input class="in codein" id="ocode" maxlength="5" placeholder="CODE" autocapitalize="characters" value="${esc(S.room||'')}"><button class="btn gold" data-act="ojoin">Entrer</button></div>
+  ${S.room?`<small>Dernière salle : <b style="color:var(--gold)">${esc(S.room)}</b> · <button data-act="oforget" style="color:var(--cyan);text-decoration:underline;font-size:inherit">oublier ce code</button></small>`:''}
   <div id="ost" class="note"></div>
   ${CFG.supabaseUrl?'':'<small>Mode test : le serveur en ligne n\'est pas encore branché. La salle fonctionne seulement entre onglets de cet appareil.</small>'}
   <small>Seuls ton prénom et ton école sont visibles par les joueurs de la salle. Rien n'est conservé.</small>
@@ -751,7 +752,17 @@ Object.assign(ACT,{
   ocreate(){enterRoom(newCode())},
   orefresh(){rejoin()},
   ojoin(){enterRoom($('#ocode').value)},
-  oleave(){leaveRoom();S.stay=false;save();onlineScreen()},
+  oleave(){const c=ROOM,box=document.createElement('div');box.className='ov';box.id='leavepop';
+    box.innerHTML=`<div class="ovc"><h2 style="margin-top:0">Quitter la salle ${esc(c)} ?</h2><p>${O&&!O.over?'Ta partie en cours sera quittée. ':''}Que veux-tu faire avec ce code ?</p>
+    <div style="display:grid;gap:8px;margin-top:16px">
+      <button class="btn pri" data-lv="new">Créer un nouveau code</button>
+      <button class="btn" data-lv="forget">Quitter et effacer ce code</button>
+      <button class="btn" data-lv="keep">Quitter (garder ${esc(c)} pour plus tard)</button>
+      <button class="btn ghost" data-lv="cancel">Annuler</button></div></div>`;
+    box.addEventListener('click',e=>{const b=e.target.closest('[data-lv]');if(!b)return;const v=b.dataset.lv;box.remove();if(v==='cancel')return;
+      leaveRoom();S.stay=false;if(v!=='keep')S.room='';save();if(v==='new')enterRoom(newCode());else onlineScreen()});
+    document.body.appendChild(box)},
+  oforget(){S.room='';S.stay=false;save();onlineScreen()},
   oshare(){const url=`${location.origin}/s/${ROOM}`,text=`Viens jouer avec moi à Génie en herbe ! Salle ${ROOM}`;
     if(navigator.share)navigator.share({title:'Défie-moi à Génie en herbe !',url}).catch(()=>{});else navigator.clipboard?.writeText(text+'\n'+url).then(()=>oStatus('Lien copié !'),()=>{})},
   olen(b){S.olen=+b.dataset.l;save();roomRender(true)},
