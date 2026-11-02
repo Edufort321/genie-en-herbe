@@ -297,7 +297,7 @@ if('serviceWorker' in navigator)addEventListener('load',()=>navigator.serviceWor
 let P=store.get('geh-profil',null);
 function profil(){
   G=null;stopTimer();
-  app.innerHTML=`<div class="onb"><img src="icon-192.webp" alt=""><h1>${P?'Mon profil':'Bienvenue !'}</h1><p>${P?'Modifie tes infos.':'Présente-toi avant de commencer.'}</p>
+  app.innerHTML=`<div class="onb"><img src="icon-192.webp" alt=""><h1>${P?'Mon profil':'Bienvenue !'}</h1><p>${P?'Modifie tes infos.':pendingRoom?'Présente-toi, puis tu entres dans la salle '+esc(pendingRoom)+'.':'Présente-toi avant de commencer.'}</p>
   <form id="pf" autocomplete="off">
     <label>Prénom<input class="in" id="pn" maxlength="30" required value="${esc(P?.nom||'')}" placeholder="Ton prénom"></label>
     <label>Âge<input class="in" id="pa" type="number" inputmode="numeric" min="8" max="20" value="${esc(P?.age||'')}" placeholder="12"></label>
@@ -314,13 +314,17 @@ function profil(){
     const age=parseInt($('#pa').value)||null,first=!P;
     P={nom:pn.value.trim(),age,ecole:$('#pe').value.trim()};store.set('geh-profil',P);
     if(first&&age){const lv=Math.min(5,Math.max(1,age-11));S.lv=Array.from({length:lv},(_,i)=>i+1);save()}
-    home()});
+    afterProfile()});
 }
 ACT.profil=profil;
+const IQS=new URLSearchParams(location.search),INVITE=(IQS.get('salle')||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
+if(INVITE){try{IQS.delete('salle');history.replaceState(null,'',location.pathname+(IQS.toString()?'?'+IQS:''))}catch(e){}}
+let pendingRoom=INVITE.length>=4?INVITE:'';
+function afterProfile(){if(pendingRoom){const c=pendingRoom;pendingRoom='';app.innerHTML='<div class="onb" style="padding-top:30vh"><div id="ost" class="note">Connexion à la salle '+esc(c)+'…</div></div>';enterRoom(c)}else home()}
 function boot(){
   app.innerHTML=`<div class="splash"><img src="icon-192.webp" alt=""><h1>Génie en herbe</h1></div>`;
-  setTimeout(()=>{const sp=$('.splash');if(sp)sp.classList.add('out');setTimeout(()=>P?home():profil(),350)},1900);
-  if(P&&S.room&&S.stay&&(window.GEH_CONFIG||{}).supabaseUrl)setTimeout(()=>enterRoom(S.room,true),2400);
+  setTimeout(()=>{const sp=$('.splash');if(sp)sp.classList.add('out');setTimeout(()=>P?afterProfile():profil(),350)},1900);
+  if(P&&!pendingRoom&&S.room&&S.stay&&(window.GEH_CONFIG||{}).supabaseUrl)setTimeout(()=>enterRoom(S.room,true),2400);
 }
 // ---------- duel 2 joueurs ----------
 const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
@@ -562,7 +566,7 @@ function roomRender(force){
   const list=Object.values(PEERS).sort((a,b)=>a.nom.localeCompare(b.nom)),mic=S.omode==='micro';
   app.innerHTML=`<div class="room"><div class="top"><button class="x" data-go="home" aria-label="Retour au jeu">←</button><h2 style="font-size:20px;flex:1">Salle</h2><button class="btn bad" style="padding:8px 12px;font-size:13px" data-act="oleave">Quitter la salle</button></div>
   <p class="note" style="margin:0 0 10px">Tu peux retourner jouer : tu restes connecté et une alerte s'affiche quand un ami arrive ou lance une partie.</p>
-  <div class="codebox"><small>Code de la salle</small><div class="code">${ROOM}</div><button class="btn" data-act="oshare">Partager le code</button></div>
+  <div class="codebox"><small>Code de la salle</small><div class="code">${ROOM}</div><button class="btn pri" data-act="oshare">Inviter des amis (lien)</button><small style="display:block;margin-top:8px;text-transform:none;letter-spacing:0">Tes amis touchent le lien et arrivent directement ici. Ils peuvent aussi taper le code dans En ligne.</small></div>
   <button class="btn pri" style="width:100%;margin-top:14px;padding:16px;font-size:17px" data-act="ogroup" ${list.length?'':'disabled'}>Lancer une partie pour toute la salle</button>
   <div class="lbl">En ligne maintenant (${list.length})</div>
   ${list.length?list.map(p=>`<div class="peer"><span class="dot ${p.busy?'busy':''}"></span><div class="pn"><b>${esc(p.nom)}</b><small>${esc(p.ecole||'')}${p.busy?(p.ecole?' · ':'')+'en partie':''}</small></div><button class="btn" data-act="oinvite" data-id="${esc(p.id)}" ${p.busy?'disabled':''}>Défier</button></div>`).join('')
@@ -691,7 +695,7 @@ Object.assign(ACT,{
   ocreate(){enterRoom(newCode())},
   ojoin(){enterRoom($('#ocode').value)},
   oleave(){leaveRoom();S.stay=false;save();onlineScreen()},
-  oshare(){const t=`Viens jouer à Génie en herbe avec moi ! Code de salle : ${ROOM}\n${location.origin}`;
+  oshare(){const t=`Viens jouer à Génie en herbe avec moi ! Touche le lien pour entrer dans ma salle (code ${ROOM}) :\n${location.origin}/?salle=${ROOM}`;
     if(navigator.share)navigator.share({text:t}).catch(()=>{});else navigator.clipboard?.writeText(t).then(()=>oStatus('Code copié !'),()=>{})},
   olen(b){S.olen=+b.dataset.l;save();roomRender(true)},
   omode(b){if(b.dataset.m!=='micro'){S.omode='choix';save();roomRender(true);return}
