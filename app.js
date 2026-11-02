@@ -43,11 +43,12 @@ const openF=new Set(store.get('geh-open',[]));
 const fold=(id,title,sum,body)=>`<details class="fold" data-fold="${id}" ${openF.has(id)?'open':''}><summary><span>${title}</span><em>${esc(sum)}</em></summary><div class="fb">${body}</div></details>`;
 app.addEventListener('toggle',e=>{const f=e.target.dataset?.fold;if(!f)return;e.target.open?openF.add(f):openF.delete(f);store.set('geh-open',[...openF])},true);
 function home(){
-  stopTimer();G=null;
+  stopTimer();G=null;setTimeout(pillUpd,0);
   const cats=catsOf(S.src),off=S.cats[S.src]||[],n=pool().length,best=store.get('geh-best',{})[S.src];
   const tab=(k,t,c)=>`<button data-src="${k}" class="${S.src===k?'on':''}">${t}<small>${c} questions</small></button>`;
   app.innerHTML=`
   <div class="hero"><img src="icon-192.webp" alt="Logo Génie en herbe"><div><h1>Génie en herbe</h1><p>${P?['Salut '+esc(P.nom),esc(P.ecole)].filter(Boolean).join(' · '):'Révise, teste-toi, deviens imbattable.'}</p></div>${P?`<button class="me" data-act="profil" aria-label="Mon profil">${esc(P.nom.trim()[0]||'?').toUpperCase()}</button>`:''}</div>
+  <button class="pill" id="pill" data-go="online" style="display:none"></button>
   <div class="tabs">${tab('mine','Mes questions',SHEET.length+mine().length)}${tab('divers','Divers',DIVERS.length)}</div>
   ${S.src==='divers'?fold('lv','Niveau',S.lv.length===5?'Sec 1 à 5':S.lv.map(l=>'Sec '+l).join(', '),`<div class="chips">${[1,2,3,4,5].map(l=>`<button class="chip gold ${S.lv.includes(l)?'on':''}" data-lv="${l}">Sec ${l}</button>`).join('')}</div>`):''}
   ${false?`<div class="drop" id="drop0"><h3>Aucun document pour l'instant</h3><p>Glisse des photos de feuilles de questions, ou un fichier .txt / .csv / .json.</p><div class="row" style="justify-content:center"><button class="btn gold" data-go="import">Ajouter des documents</button></div></div>`:`
@@ -315,6 +316,7 @@ ACT.profil=profil;
 function boot(){
   app.innerHTML=`<div class="splash"><img src="icon-192.webp" alt=""><h1>Génie en herbe</h1></div>`;
   setTimeout(()=>{const sp=$('.splash');if(sp)sp.classList.add('out');setTimeout(()=>P?home():profil(),350)},1900);
+  if(P&&S.room&&S.stay&&(window.GEH_CONFIG||{}).supabaseUrl)setTimeout(()=>enterRoom(S.room,true),2400);
 }
 // ---------- duel 2 joueurs ----------
 const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
@@ -515,32 +517,56 @@ function onlineScreen(){
   <small>Seuls ton prénom et ton école sont visibles par les joueurs de la salle. Rien n'est conservé.</small>
   <div class="row" style="justify-content:center"><button class="btn ghost" data-go="home">Retour</button></div></div>`;
 }
-async function enterRoom(code){
+let joinedAt=0,toasts=[];
+async function enterRoom(code,silent){
   code=code.toUpperCase().replace(/[^A-Z0-9]/g,'');if(code.length<4){oStatus('Le code doit avoir 5 caractères.');return}
+  if(NET)leaveRoom();
   oStatus('Connexion…');
-  try{NET=await netJoin(code,p=>{PEERS=p;if(O&&!O.over&&!PEERS[O.opp])oAbort((O.oppNom||'Ton adversaire')+' a quitté.');else roomRender(false)},onNet)}
-  catch(e){oStatus('Connexion impossible ('+(e?.message||e)+'). Vérifie internet et réessaie.');return}
-  ROOM=code;S.room=code;save();roomRender(true);
+  try{NET=await netJoin(code,onPeers,onNet)}
+  catch(e){if(!silent)oStatus('Connexion impossible ('+(e?.message||e)+'). Vérifie internet et réessaie.');return}
+  ROOM=code;S.room=code;S.stay=true;save();joinedAt=Date.now();
+  silent?pillUpd():roomRender(true);
 }
-function leaveRoom(){try{NET&&NET.leave()}catch(e){}NET=null;ROOM=null;PEERS={};INV=null;OUT=null}
+function onPeers(p){
+  const old=PEERS;PEERS=p;
+  if(O&&!O.over&&!PEERS[O.opp]){oAbort((O.oppNom||'Ton adversaire')+' a quitté.');return}
+  if(Date.now()-joinedAt>2500&&!(O&&!O.over))Object.values(p).filter(x=>!old[x.id]).forEach(friendToast);
+  roomRender(false);pillUpd();
+}
+// ---------- couche d'alertes (par-dessus n'importe quel écran) ----------
+const layer=document.createElement('div');layer.id='layer';document.body.appendChild(layer);
+layer.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;const a=b.dataset.act;
+  if(a==='tclose'){toasts=toasts.filter(t=>t.k!==b.dataset.k);drawLayer()}
+  else if(a&&ACT[a]){if(a==='oinvite'){toasts=toasts.filter(t=>t.id!==b.dataset.id)}ACT[a](b);drawLayer()}});
+function drawLayer(){
+  layer.innerHTML=`<div class="toasts">${toasts.map(t=>`<div class="toast"><span class="dot"></span><div class="tt">${t.html}</div>${t.id&&PEERS[t.id]&&!PEERS[t.id].busy&&!OUT&&!(O&&!O.over)?`<button class="btn pri" data-act="oinvite" data-id="${esc(t.id)}">Démarrer</button>`:''}<button class="tx" data-act="tclose" data-k="${t.k}" aria-label="Fermer">✕</button></div>`).join('')}</div>`+invHTML();
+}
+function toast(html,id,ms=12000){const k=Math.random().toString(36).slice(2);toasts.push({k,html,id});toasts=toasts.slice(-3);drawLayer();setTimeout(()=>{toasts=toasts.filter(t=>t.k!==k);drawLayer()},ms)}
+function friendToast(p){
+  beep(880,.09);setTimeout(()=>beep(1175,.12),110);navigator.vibrate&&navigator.vibrate([70,50,70]);
+  toast(`<b>${esc(p.nom)}</b> est en ligne !<small>Salle ${esc(ROOM)}</small>`,p.id);
+}
+function pillUpd(){const e=$('#pill');if(!e)return;if(!ROOM){e.style.display='none';return}const n=Object.keys(PEERS).length;e.style.display='';e.innerHTML=`<span class="dot ${n?'':'off'}"></span>Salle ${esc(ROOM)} · ${n?n+' en ligne':'personne pour l\'instant'}`}
+function leaveRoom(){try{NET&&NET.leave()}catch(e){}NET=null;ROOM=null;PEERS={};INV=null;OUT=null;toasts=[];drawLayer()}
 function invHTML(){return INV?`<div class="ov"><div class="ovc"><img src="icon-192.webp" alt=""><h2>${esc(INV.nom)} te lance un défi !</h2><p>${INV.deck.length} questions · réponses A B C D</p><div class="row" style="justify-content:center"><button class="btn bad" data-act="odec">Refuser</button><button class="btn pri" data-act="oacc">Accepter</button></div></div></div>`:''}
 function roomRender(force){
   if(!ROOM||(O&&!O.over))return;if(!force&&!$('.room'))return;
   const list=Object.values(PEERS).sort((a,b)=>a.nom.localeCompare(b.nom));
-  app.innerHTML=`<div class="room"><div class="top"><button class="x" data-act="oleave" aria-label="Quitter la salle">✕</button><h2 style="font-size:20px">Salle</h2></div>
+  app.innerHTML=`<div class="room"><div class="top"><button class="x" data-go="home" aria-label="Retour au jeu">←</button><h2 style="font-size:20px;flex:1">Salle</h2><button class="btn bad" style="padding:8px 12px;font-size:13px" data-act="oleave">Quitter la salle</button></div>
+  <p class="note" style="margin:0 0 10px">Tu peux retourner jouer : tu restes connecté et une alerte s'affiche quand un ami arrive ou te défie.</p>
   <div class="codebox"><small>Code de la salle</small><div class="code">${ROOM}</div><button class="btn" data-act="oshare">Partager le code</button></div>
   <div class="lbl">En ligne maintenant (${list.length})</div>
   ${list.length?list.map(p=>`<div class="peer"><span class="dot ${p.busy?'busy':''}"></span><div class="pn"><b>${esc(p.nom)}</b><small>${esc(p.ecole||'')}${p.busy?(p.ecole?' · ':'')+'en partie':''}</small></div><button class="btn pri" data-act="oinvite" data-id="${esc(p.id)}" ${p.busy||OUT?'disabled':''}>Défier</button></div>`).join('')
    :`<p class="note">Personne d'autre pour l'instant. Donne le code <b style="color:var(--gold)">${ROOM}</b> à tes amis.</p>`}
   <div class="lbl">Partie</div><div class="opts"><div class="seg">${[5,10,15].map(l=>`<button data-act="olen" data-l="${l}" class="${(S.olen||10)===l?'on':''}">${l} questions</button>`).join('')}</div></div>
-  <div id="ost" class="note">${OUT?'Défi envoyé à '+esc(OUT.nom)+'…':''}</div></div>`+invHTML();
+  <div id="ost" class="note">${OUT?'Défi envoyé à '+esc(OUT.nom)+'…':''}</div></div>`;
 }
 function onNet(m){
   if(m.to&&m.to!==myId)return;
   if(m.t==='inv'){if(O&&!O.over||INV){NET.send({t:'dec',to:m.from,gid:m.gid,busy:1});return}
     INV=m;beep(990,.1);navigator.vibrate&&navigator.vibrate([80,60,80]);say(m.nom+' te lance un défi !');
-    if(O&&O.over){O=null}roomRender(true);setTimeout(()=>{if(INV&&INV.gid===m.gid){INV=null;roomRender(false)}},25000);return}
-  if(m.t==='dec'){if(OUT&&OUT.gid===m.gid){const n=OUT.nom;OUT=null;roomRender(false);oStatus(n+(m.busy?' est occupé(e).':' a refusé le défi.'))}return}
+    drawLayer();setTimeout(()=>{if(INV&&INV.gid===m.gid){INV=null;drawLayer()}},25000);return}
+  if(m.t==='dec'){if(OUT&&OUT.gid===m.gid){const n=OUT.nom;OUT=null;roomRender(false);const t=n+(m.busy?' est occupé(e).':' a refusé le défi.');$('#ost')?oStatus(t):toast(esc(t),null,5000)}return}
   if(m.t==='acc'){if(OUT&&OUT.gid===m.gid){const o=OUT;OUT=null;oStart(true,o.to,o.nom,o.gid,o.deck)}return}
   if(!O||m.gid!==O.gid)return;
   if(m.t==='q')oShowQ(m.i);
@@ -552,7 +578,8 @@ function onNet(m){
 }
 function packQ(q){const ch=choicesFor(q);return{c:q.c,q:q.clues?q.clues.join(' '):q.q,a:answerOf(q),ch,p:10}}
 function oStart(host,opp,oppNom,gid,deck){
-  INV=null;O={host,opp,oppNom,gid,deck,i:-1,sc:{[myId]:0,[opp]:0},over:false};NET.update();
+  stopTimer();G=null;if(D){dClear();D=null}speechSynthesis.cancel();toasts=[];
+  INV=null;drawLayer();O={host,opp,oppNom,gid,deck,i:-1,sc:{[myId]:0,[opp]:0},over:false};NET.update();
   say('Défi contre '+oppNom+' !');
   if(host)setTimeout(oNextQ,1600);else oRender();
 }
@@ -613,7 +640,7 @@ function oEnd(sc){
   say(me>op?'Victoire !':me<op?O.oppNom+' gagne.':'Égalité !');
   app.innerHTML=`<div class="card end"><img src="icon-192.webp" alt=""><div class="big">${res}</div>
   <div class="stats"><div><b>${me}</b>${esc(myNom())}</div><div><b>${op}</b>${esc(O.oppNom)}</div></div>
-  <div class="row" style="justify-content:center"><button class="btn pri" data-act="orematch">Revanche</button><button class="btn" data-act="oroom">Retour à la salle</button></div></div>`+invHTML();
+  <div class="row" style="justify-content:center"><button class="btn pri" data-act="orematch">Revanche</button><button class="btn" data-act="oroom">Retour à la salle</button></div></div>`;
 }
 function oAbort(msg){if(!O)return;clearTimeout(O.tm);clearTimeout(O.grace);O=null;if(NET)NET.update();roomRender(true);oStatus(msg)}
 function oInvite(id){
@@ -627,13 +654,13 @@ app.addEventListener('pointerdown',e=>{const f=e.target.closest('[data-ofast]');
 Object.assign(ACT,{
   ocreate(){enterRoom(newCode())},
   ojoin(){enterRoom($('#ocode').value)},
-  oleave(){leaveRoom();onlineScreen()},
+  oleave(){leaveRoom();S.stay=false;save();onlineScreen()},
   oshare(){const t=`Viens jouer à Génie en herbe avec moi ! Code de salle : ${ROOM}\n${location.origin}`;
     if(navigator.share)navigator.share({text:t}).catch(()=>{});else navigator.clipboard?.writeText(t).then(()=>oStatus('Code copié !'),()=>{})},
   olen(b){S.olen=+b.dataset.l;save();roomRender(true)},
   oinvite(b){oInvite(b.dataset.id)},
   oacc(){const v=INV;if(!v)return;NET.send({t:'acc',to:v.from,gid:v.gid});oStart(false,v.from,v.nom,v.gid,v.deck)},
-  odec(){if(INV)NET.send({t:'dec',to:INV.from,gid:INV.gid});INV=null;O&&O.over?oEnd(O.sc):roomRender(true)},
+  odec(){if(INV)NET.send({t:'dec',to:INV.from,gid:INV.gid});INV=null;drawLayer()},
   oquit(){if(O)NET.send({t:'quit',to:O.opp,gid:O.gid});O=null;NET.update();roomRender(true)},
   orematch(){const id=O.opp;O=null;NET.update();if(PEERS[id])oInvite(id);else{roomRender(true);oStatus('Ton adversaire n\'est plus dans la salle.')}},
   oroom(){O=null;NET.update();roomRender(true)},

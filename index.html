@@ -181,6 +181,14 @@ textarea.in{font-size:14px;min-height:240px;font-family:ui-monospace,Menlo,monos
 .vs{display:flex;align-items:center;justify-content:space-around;padding:10px;margin-bottom:10px;border-radius:18px;background:rgba(10,16,50,.6);border:1px solid var(--line)}
 .vs div{text-align:center}.vs small{display:block;color:var(--mut);font-size:12px}.vs b{font-size:28px;color:var(--gold)}.vs span{font-weight:800;color:var(--mut)}
 .ocard{flex:1;display:flex;flex-direction:column}.ocard .fast,.ocard .state{margin-top:14px}
+#layer{position:fixed;inset:0;pointer-events:none;z-index:9}#layer>*{pointer-events:auto}
+.toasts{position:absolute;left:10px;right:10px;top:max(10px,env(safe-area-inset-top));display:flex;flex-direction:column;gap:8px;pointer-events:none}
+.toast{pointer-events:auto;display:flex;align-items:center;gap:10px;padding:12px 12px 12px 14px;border-radius:18px;background:#10183f;border:1px solid var(--good);box-shadow:0 10px 40px rgba(0,0,0,.5),0 0 24px rgba(62,224,143,.25);animation:drop .3s}
+.toast .tt{flex:1;min-width:0;font-size:15px}.toast .tt small{display:block;color:var(--mut);font-size:12px}
+.toast .btn{padding:9px 14px;font-size:14px}.toast .tx{width:30px;height:30px;color:var(--mut);font-size:15px;flex:none}
+@keyframes drop{from{opacity:0;transform:translateY(-14px)}to{opacity:1;transform:none}}
+.pill{display:flex;align-items:center;gap:8px;width:100%;padding:9px 14px;margin-bottom:10px;border-radius:14px;background:rgba(62,224,143,.10);border:1px solid rgba(62,224,143,.4);font-size:14px;font-weight:600}
+.dot.off{background:var(--mut);box-shadow:none}
 .fold{margin-top:10px;border:1px solid var(--line);border-radius:16px;background:rgba(10,16,50,.55);overflow:hidden}
 .fold summary{list-style:none;display:flex;align-items:center;gap:10px;padding:13px 14px;cursor:pointer;font-weight:600;font-size:15px}
 .fold summary::-webkit-details-marker{display:none}
