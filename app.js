@@ -366,12 +366,14 @@ function duelSetup(){
   <form id="df" autocomplete="off">
     <label>Joueur 1 (en bas)<input class="in" id="d1" maxlength="20" value="${esc(S.dn1||P?.nom||'Joueur 1')}"></label>
     <label>Joueur 2 (en haut)<input class="in" id="d2" maxlength="20" value="${esc(S.dn2||'Joueur 2')}"></label>
+    <label>Avatar du joueur 2</label><div class="avgrid" id="dav">${Array.from({length:NAV},(_,i)=>`<button type="button" class="avb ${(S.dav2||0)===i+1?'on':''}" data-dav="${i+1}">${avImg(i+1)}</button>`).join('')}</div>
     <label>Nombre de questions</label><div class="seg" style="margin-top:6px">${[10,15,20].map(l=>`<button type="button" data-dl="${l}" class="${dl===l?'on':''}">${l}</button>`).join('')}</div>
     <label>Réponse</label><div class="seg" style="margin-top:6px"><button type="button" data-dv="1" class="${voc?'on':''}" ${SR?'':'disabled'}>Au micro</button><button type="button" data-dv="0" class="${voc?'':'on'}">Choix A B C D</button></div>
     ${SR?'':'<small>Ce navigateur ne permet pas la reconnaissance vocale : réponses par choix.</small>'}
     <button class="btn pri go" type="submit">Lancer le duel</button>
   </form><small>${n} questions disponibles avec tes filtres actuels.</small><div class="row" style="justify-content:center"><button class="btn ghost" data-go="home">Retour</button></div></div>`;
   $('#df').addEventListener('click',e=>{const b=e.target.closest('button[type=button]');if(!b)return;
+    if(b.dataset.dav){S.dav2=+b.dataset.dav;S.dn1=$('#d1').value;S.dn2=$('#d2').value;save();$('#dav .avb.on')?.classList.remove('on');b.classList.add('on');return}
     if(b.dataset.dl){S.dlen=+b.dataset.dl}else if(b.dataset.dv){S.dvoc=b.dataset.dv==='1'}S.dn1=$('#d1').value;S.dn2=$('#d2').value;save();duelSetup()});
   $('#df').addEventListener('submit',async e=>{e.preventDefault();S.dn1=$('#d1').value.trim()||'Joueur 1';S.dn2=$('#d2').value.trim()||'Joueur 2';save();
     const deck=shuffle(dPool()).slice(0,S.dlen||10);if(!deck.length)return;
@@ -380,7 +382,7 @@ function duelSetup(){
       if(!(await micOK())){S.dvoc=false;save();go.disabled=false;go.textContent='Lancer le duel';
         const m=document.createElement('small');m.style.color='var(--bad)';m.textContent='Micro refusé ou indisponible : le duel se jouera avec les choix A B C D. Appuie de nouveau sur Lancer, ou autorise le micro dans les réglages de Chrome (icône à gauche de l\'adresse).';
         $('#df').appendChild(m);$('#df [data-dv="1"]').classList.remove('on');$('#df [data-dv="0"]').classList.add('on');return}}
-    D={p:[{n:S.dn1,s:0},{n:S.dn2,s:0}],deck,i:0,vocal};
+    D={p:[{n:S.dn1,s:0,av:P?.av||0},{n:S.dn2,s:0,av:S.dav2||0}],deck,i:0,vocal};
     say('Duel ! '+S.dn1+' contre '+S.dn2+'. Prêts ?');dStart()});
 }
 function dStart(){
@@ -463,11 +465,11 @@ function dHalf(k){
     z=D.vocal?`<div class="state talk"><div class="mic"></div><div id="mst${k}">Parle maintenant !</div><div class="heard" id="heard${k}">${D.heard?'« '+esc(D.heard)+' »':''}</div><div class="row" style="margin-top:4px;justify-content:center"><button class="btn ghost" data-act="dmic" data-k="${k}">Relancer le micro</button><button class="btn ghost" data-act="dchoix">Choix A B C D</button></div></div>`
       :`<div class="choices">${D.ch.map((c,i)=>`<button class="choice" data-act="dpick" data-k="${k}" data-i="${i}"><b>${'ABCD'[i]}</b><span>${esc(c)}</span></button>`).join('')}</div>`;
   }else if(D.phase==='ans')z=`<div class="state">${esc(D.p[D.who].n)} répond…</div>`;
-  else if(D.phase==='show')z=`<div class="state ${D.ok===k?'win':D.ok===null?'':'lose'}"><small>${D.ok===k?'Bonne réponse !':D.ok===null?'Personne':esc(D.p[D.ok].n)+' a eu le point'}</small><div class="big2">${esc(ans)}</div>${D.heard&&D.ok!==k&&D.who===k?`<small>Tu as dit « ${esc(D.heard)} »</small>`:''}</div>`;
+  else if(D.phase==='show')z=`<div class="state ${D.ok===k?'win':D.ok===null?'':'lose'}">${D.ok!=null?avImg(D.p[D.ok].av,'wav'):''}<small>${D.ok===k?'Bonne réponse !':D.ok===null?'Personne':esc(D.p[D.ok].n)+' a eu le point'}</small><div class="big2">${esc(ans)}</div>${D.heard&&D.ok!==k&&D.who===k?`<small>Tu as dit « ${esc(D.heard)} »</small>`:''}</div>`;
   else if(D.tried[k])z=`<div class="state lose">Raté ! ${D.miss===k?esc(D.heard?'« '+D.heard+' »':''):''}<small>Réplique pour ${esc(D.p[1-k].n)}</small></div>`;
   else if(!D.vocal)z=`<div class="fast">${D.tried[1-k]?'<div class="rep">RÉPLIQUE !</div>':''}${D.ch.map((c,i)=>`<button class="fbtn" data-dfast="${k}" data-i="${i}" ${D.bad.includes(i)?'disabled':''}><b>${'ABCD'[i]}</b><span>${esc(c)}</span></button>`).join('')}</div>`;
   else z=`<button class="buzz" data-buzz="${k}">${D.tried[1-k]?'RÉPLIQUE !':'BUZZ'}</button>`;
-  return `<div class="half p${k} ${k===1?'flip':''}"><div class="hd"><span>${esc(me.n)}</span><b>${pct(me.s,D.done||0)} %</b></div>
+  return `<div class="half p${k} ${k===1?'flip':''}"><div class="hd"><span class="hdn">${avImg(me.av,'hav')}${esc(me.n)}</span><b>${pct(me.s,D.done||0)} %</b></div>
   <div class="dq">${q.clues?`<em>${q.pts[D.ci]} pts · indice ${D.ci+1}/${q.clues.length}</em> `:''}${esc(dText(q))}</div>${z}</div>`;
 }
 function dRender(){
@@ -477,7 +479,7 @@ function dRender(){
 function dEnd(){
   dClear();const [a,b]=D.p;const w=a.s===b.s?null:(a.s>b.s?a:b);
   say(w?'Victoire de '+w.n+' !':'Égalité !');
-  app.innerHTML=`<div class="card end"><img src="icon-192.webp" alt=""><div class="big">${w?esc(w.n):'Égalité'}</div><p class="count">${w?'remporte le duel':'Match nul, revanche ?'}</p>
+  app.innerHTML=`<div class="card end"><img src="icon-192.webp" alt="">${w&&w.av?avImg(w.av,'ovav'):''}<div class="big">${w?esc(w.n):'Égalité'}</div><p class="count">${w?'remporte le duel':'Match nul, revanche ?'}</p>
   <div class="stats"><div><b>${pct(a.s,D.done)} %</b>${esc(a.n)}</div><div><b>${pct(b.s,D.done)} %</b>${esc(b.n)}</div></div>
   <div class="row" style="justify-content:center"><button class="btn pri" data-go="duel">Revanche</button><button class="btn" data-act="dhome">Accueil</button></div></div>`;
 }
@@ -681,7 +683,7 @@ function oRender(){
     return}
   const q=O.deck[O.i];let z='';
   if(!q)z='<div class="state">Préparez-vous…</div>';
-  else if(O.phase==='show'){const r=O.res;z=`<div class="state ${r.win===myId?'win':r.win?'lose':''}"><small>${r.win===myId?'Bonne réponse !':r.win?esc(O.names[r.win])+' a eu le point':'Personne n\'a trouvé'}</small><div class="big2">${esc(q.a)}</div></div>`}
+  else if(O.phase==='show'){const r=O.res;z=`<div class="state ${r.win===myId?'win':r.win?'lose':''}">${r.win?avImg(O.av?.[r.win],'wav'):''}<small>${r.win===myId?'Bonne réponse !':r.win?esc(O.names[r.win])+' a eu le point':'Personne n\'a trouvé'}</small><div class="big2">${esc(q.a)}</div></div>`}
   else if(O.locked[myId])z=`<div class="state lose">Raté !<small>La question reste ouverte pour les autres.</small></div>`;
   else if(O.mine!=null)z=`<div class="state">${O.mine==='ok'?'Bonne réponse ! Vérification…':'Réponse envoyée…'}</div>`;
   else if(O.listening)z=`<div class="state talk"><div class="mic"></div><div>Parle ! Les autres ne t'entendent pas.</div><div class="heard" id="oheard">${O.heard?'« '+esc(O.heard)+' »':''}</div><button class="btn ghost" data-act="opass">Je passe</button></div>`;
@@ -695,7 +697,7 @@ const QUICK=['Bien joué !','Bravo !','Trop fort !','Bonne chance !','On lâche 
 const emoBar=()=>`<div class="emobar">${EMOS.map((e,i)=>`<button data-act="oemo" data-e="${i}" aria-label="Réaction">${e}</button>`).join('')}</div>
   <div class="quick">${QUICK.map((t,i)=>`<button data-act="oemo" data-e="${100+i}">${t}</button>`).join('')}</div>`;
 let lastEmo=0;
-function showEmo(id,i){const box=$('#emos'),t=i>=100?QUICK[i-100]:EMOS[i];if(!box||!t)return;const d=document.createElement('div');d.className='emo'+(i>=100?' txt':'');d.innerHTML=`<span>${esc((O&&O.names[id])||'?')}</span>${esc(t)}`;box.appendChild(d);setTimeout(()=>d.remove(),2600)}
+function showEmo(id,i){const box=$('#emos'),t=i>=100?QUICK[i-100]:EMOS[i];if(!box||!t)return;const d=document.createElement('div');d.className='emo'+(i>=100?' txt':'');d.innerHTML=`${avImg(O&&O.av?.[id],'eav')}<span>${esc((O&&O.names[id])||'?')}</span>${esc(t)}`;box.appendChild(d);setTimeout(()=>d.remove(),2600)}
 function oEnd(sc){
   if(!O)return;oClr();O.over=true;O.sc=sc;NET.update();
   const ids=Object.keys(sc).sort((a,b)=>sc[b]-sc[a]),rank=ids.indexOf(myId)+1,top=sc[ids[0]],win=ids.filter(id=>sc[id]===top);
