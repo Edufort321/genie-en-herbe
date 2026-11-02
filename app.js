@@ -510,7 +510,7 @@ let NET=null,ROOM=null,PEERS={},O=null,INV=null,sbc=null;
 const CODECH='ABCDEFGHJKMNPQRSTUVWXYZ23456789',newCode=()=>Array.from({length:5},()=>CODECH[Math.random()*CODECH.length|0]).join('');
 function loadSB(){return window.supabase?Promise.resolve():new Promise((res,rej)=>{const s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js';s.onload=res;s.onerror=()=>rej(new Error('librairie Supabase non chargée'));document.head.appendChild(s)})}
 async function netJoin(code,onPeers,onMsg,onDrop){
-  const me=()=>({id:myId,nom:myNom(),ecole:P?.ecole||'',av:P?.av||0,busy:!!(O&&!O.over),game:(O&&!O.over&&O.isHost&&O.phase!=='lobby')?{gid:O.gid,duel:!!O.targets,ids:Object.keys(O.sc),n:O.deck.length}:null});
+  const me=()=>({id:myId,nom:myNom(),ecole:P?.ecole||'',av:P?.av||0,busy:!!(O&&!O.over),game:(O&&!O.over&&O.isHost&&O.phase!=='lobby')?{gid:O.gid,duel:!!O.targets,ids:Object.keys(O.sc),n:O.deck.length,i:O.i,ph:O.phase,left:O.phase==='read'?Math.max(0,O.end-Date.now()):0,top:topLine()}:null});
   if(CFG.supabaseUrl&&CFG.supabaseKey){
     await loadSB();sbc=sbc||window.supabase.createClient(new URL(CFG.supabaseUrl).origin,CFG.supabaseKey,{auth:{persistSession:false}});
     const ch=sbc.channel('geh-'+code,{config:{presence:{key:myId},broadcast:{self:false}}});
@@ -577,7 +577,7 @@ document.addEventListener('visibilitychange',()=>{
 });
 setInterval(()=>{if(ROOM&&NET&&document.visibilityState==='visible'){if(NET.state&&NET.state()!=='SUBSCRIBED')rejoin();else try{NET.update()}catch(e){}}},20000);
 function onPeers(p){
-  const old=PEERS;PEERS=p;
+  const old=PEERS;PEERS=p;Object.values(p).forEach(x=>{if(x.game)x.game.at=Date.now()});
   if(O&&!O.over){
     // tolérance : un joueur peut disparaître quelques secondes le temps de se reconnecter
     const g=O.gid;
@@ -607,9 +607,16 @@ function friendToast(p){
 function pillUpd(){const e=$('#pill');if(!e)return;if(!ROOM){e.style.display='none';return}const n=Object.keys(PEERS).length;e.style.display='';e.innerHTML=`<span class="dot ${conn!=='ok'?'busy':n?'':'off'}"></span>Salle ${esc(ROOM)} · ${conn!=='ok'?'reconnexion…':n?n+' en ligne':'personne pour l\'instant'}`}
 function leaveRoom(){if(O&&!O.over)ACT.oquit(true);try{NET&&NET.leave()}catch(e){}NET=null;ROOM=null;PEERS={};INV=null;O=null;toasts=[];drawLayer()}
 function invHTML(){return INV?`<div class="ov"><div class="ovc">${INV.av?avImg(INV.av,'ovav'):'<img src="icon-192.webp" alt="">'}<h2>${esc(INV.nom)} ${INV.duel?'te défie':'lance une partie'} !</h2><p>${INV.deck.length} questions${INV.duel?'':' · pour toute la salle'}</p><div class="row" style="justify-content:center"><button class="btn bad" data-act="odec">Non merci</button><button class="btn pri" data-act="oacc">Jouer !</button></div></div></div>`:''}
+function topLine(){if(!O)return'';const ids=Object.keys(O.sc).sort((a,b)=>O.sc[b]-O.sc[a]).slice(0,3);return ids.map(id=>(O.names[id]||'?')+' '+pct(O.sc[id],O.done||0)+' %').join(' · ')}
 function liveOf(p){return p.game&&(!p.game.duel||p.game.ids?.includes(myId))?p.game:null}
-function liveHTML(list){const h=list.find(p=>liveOf(p));if(!h||(O&&!O.over))return'';
-  return `<div class="live"><span class="dot busy"></span><div class="pn"><b>Partie en cours</b><small>lancée par ${esc(h.nom)} · ${h.game.n} questions</small></div><button class="btn gold" data-act="ojoinlive" data-id="${esc(h.id)}">${h.game.ids?.includes(myId)?'Revenir':'Rejoindre'}</button></div>`}
+const waitingFor=new Set(),SEL=new Set();
+function liveHTML(list){const h=list.find(p=>p.game);if(!h||(O&&!O.over))return'';const g=h.game,mine=g.ids?.includes(myId),canJoin=!g.duel||mine;
+  return `<div class="live"><span class="dot busy"></span><div class="pn"><b>${g.duel&&!mine?'Défi privé':'Partie en cours'} chez ${esc(h.nom)}</b>
+  <small>${g.ph==='read'?`Question ${g.i+1}/${g.n} · <b id="livecount" data-left="${g.left}" data-at="${g.at}">${Math.ceil(g.left/1000)} s</b>`:g.i<0?'Ça commence…':`Question ${g.i+1}/${g.n} terminée`}</small>
+  ${g.top?`<small class="ltop">${esc(g.top)}</small>`:''}</div>
+  <div class="lbtns">${canJoin?`<button class="btn gold" data-act="ojoinlive" data-id="${esc(h.id)}">${mine?'Revenir':'Rejoindre'}</button>`:''}
+  ${mine?'':waitingFor.has(g.gid)?'<small class="wok">✓ Il sait que tu attends</small>':`<button class="btn ghost" data-act="owait" data-id="${esc(h.id)}">M'attendre</button>`}</div></div>`}
+setInterval(()=>{const e=$('#livecount');if(!e)return;const l=+e.dataset.left-(Date.now()-+e.dataset.at);e.textContent=Math.max(0,Math.ceil(l/1000))+' s'},500);
 function roomRender(force){
   if(!ROOM||(O&&!O.over))return;if(!force&&!$('.room'))return;
   const list=Object.values(PEERS).sort((a,b)=>a.nom.localeCompare(b.nom)),mic=S.omode==='micro';
@@ -617,9 +624,11 @@ function roomRender(force){
   <p class="note" style="margin:0 0 10px">Tu peux retourner jouer : tu restes connecté et une alerte s'affiche quand un ami arrive ou lance une partie.</p>
   <div class="codebox"><small>Code de la salle</small><div class="code">${ROOM}</div><button class="btn pri" data-act="oshare">Inviter des amis (lien)</button><small style="display:block;margin-top:8px;text-transform:none;letter-spacing:0">Tes amis touchent le lien et arrivent directement ici. Ils peuvent aussi taper le code dans En ligne.</small></div>
   ${liveHTML(list)}
-  <button class="btn pri" style="width:100%;margin-top:14px;padding:16px;font-size:17px" data-act="ogroup" ${list.length?'':'disabled'}>Lancer une partie pour toute la salle</button>
+  ${(()=>{for(const id of [...SEL])if(!PEERS[id]||PEERS[id].busy)SEL.delete(id);const n=SEL.size;
+    return n?`<button class="btn pri" style="width:100%;margin-top:14px;padding:16px;font-size:17px" data-act="osel">Défier ${n} joueur${n>1?'s':''}</button><button class="btn ghost" style="width:100%;margin-top:6px" data-act="oselclr">Annuler la sélection</button>`
+      :`<button class="btn pri" style="width:100%;margin-top:14px;padding:16px;font-size:17px" data-act="ogroup" ${list.length?'':'disabled'}>Lancer une partie pour toute la salle</button><small style="display:block;text-align:center;color:var(--mut);margin-top:6px">ou touche des joueurs ci-dessous pour en défier quelques-uns</small>`})()}
   <div class="lbl" style="display:flex;align-items:center">En ligne maintenant (${list.length})<button class="btn ghost" style="margin-left:auto;padding:4px 10px;font-size:12px" data-act="orefresh">Actualiser</button></div>
-  ${list.length?list.map(p=>`<div class="peer">${p.av?avImg(p.av,'pav'):''}<span class="dot ${p.busy?'busy':''}"></span><div class="pn"><b>${esc(p.nom)}</b><small>${esc(p.ecole||'')}${p.busy?(p.ecole?' · ':'')+'en partie':''}</small></div><button class="btn" data-act="oinvite" data-id="${esc(p.id)}" ${p.busy?'disabled':''}>Défier</button></div>`).join('')
+  ${list.length?list.map(p=>`<div class="peer">${p.av?avImg(p.av,'pav'):''}<span class="dot ${p.busy?'busy':''}"></span><div class="pn"><b>${esc(p.nom)}</b><small>${esc(p.ecole||'')}${p.busy?(p.ecole?' · ':'')+'en partie':''}</small></div><button class="pick ${SEL.has(p.id)?'on':''}" data-act="opick" data-id="${esc(p.id)}" ${p.busy?'disabled':''} aria-label="Choisir">${SEL.has(p.id)?'✓':''}</button></div>`).join('')
    :`<p class="note">Personne d'autre pour l'instant. Donne le code <b style="color:var(--gold)">${ROOM}</b> à tes amis.</p>`}
   <div class="lbl">Partie</div><div class="opts"><div class="seg">${[5,10,15,20].map(l=>`<button data-act="olen" data-l="${l}" class="${(S.olen||10)===l?'on':''}">${l} q.</button>`).join('')}</div></div>
   <div class="lbl">Ma façon de répondre</div><div class="opts"><div class="seg"><button data-act="omode" data-m="choix" class="${mic?'':'on'}">Choix A B C D</button><button data-act="omode" data-m="micro" class="${mic?'on':''}" ${SR?'':'disabled'}>Au micro</button></div></div>
@@ -638,11 +647,12 @@ function onNet(m){
   if(O.isHost&&m.t==='emo'){showEmo(m.from,m.e);return}
   if(O.isHost){
     if(m.t==='gjoin'){if(!(m.from in O.sc))O.sc[m.from]=0;O.names[m.from]=m.nom;O.av[m.from]=m.av||0;if(O.away)delete O.away[m.from];gList();
-      if(O.phase==='lobby'){oRender();if(O.targets&&O.targets.every(id=>id in O.sc))gStart();return}
+      if(O.phase==='lobby'){oRender();tgtCheck();return}
       // arrivée ou retour en cours de partie : on lui envoie l'état actuel
       NET.send({t:'gsync',to:m.from,gid:O.gid,deck:O.deck,sc:O.sc,names:O.names,av:O.av,away:O.away||{},i:O.i,phase:O.phase,left:O.phase==='read'?O.end-Date.now():0,locked:O.locked||{},done:O.done||0});
       NET.update();oRender();return}
-    if(m.t==='gno'&&O.targets&&O.phase==='lobby'){oAbort((PEERS[m.from]?.nom||'Ton ami')+' a refusé le défi.');return}
+    if(m.t==='gno'&&O.targets&&O.phase==='lobby'){O.no=O.no||{};O.no[m.from]=1;toast(esc((PEERS[m.from]?.nom||'Un ami')+' a refusé le défi.'),null,4000);tgtCheck();return}
+    if(m.t==='wait'){O.waiting=O.waiting||{};O.waiting[m.from]=m.nom;const box=$('#emos');if(box){const d=document.createElement('div');d.className='emo txt';d.innerHTML=`${avImg(m.av,'eav')}<span>${esc(m.nom)}</span>t'attend pour la prochaine partie`;box.appendChild(d);setTimeout(()=>d.remove(),4000)}else toast(`<b>${esc(m.nom)}</b> t'attend pour la prochaine partie`,null,6000);if(O.over)oEnd(O.sc);return}
     if(m.t==='gquit'){if(O.phase==='lobby')delete O.sc[m.from];else{O.away=O.away||{};O.away[m.from]=true}gList();if(O.phase==='lobby'&&O.targets)oAbort((O.names[m.from]||'Ton ami')+' a quitté.');else{if(O.phase==='read')hostAllLocked();oRender()}return}
     if(m.t==='ans')hostAns(m.from,m.i,m);
     return}
@@ -664,14 +674,16 @@ function oLaunch(targets){
   toasts=[];drawLayer();
   O={gid,host:myId,isHost:true,deck,sc:{[myId]:0},names:{[myId]:myNom()},av:{[myId]:P?.av||0},phase:'lobby',over:false,i:-1,targets};
   NET.send({t:'ginv',to:targets||undefined,gid,nom:myNom(),av:P?.av||0,deck,duel:!!targets});NET.update();oRender();
-  setTimeout(()=>{if(O&&O.gid===gid&&O.phase==='lobby'&&targets)oAbort((PEERS[targets[0]]?.nom||'Ton ami')+' n\'a pas répondu.')},30000);
+  setTimeout(()=>{if(O&&O.gid===gid&&O.phase==='lobby'&&targets){Object.keys(O.sc).length>=2?gStart():oAbort(targets.length>1?'Personne n\'a répondu.':(PEERS[targets[0]]?.nom||'Ton ami')+' n\'a pas répondu.')}},30000);
 }
+function tgtCheck(){if(!O||!O.targets||O.phase!=='lobby')return;const resp=O.targets.filter(id=>id in O.sc||O.no?.[id]);
+  if(resp.length<O.targets.length)return;Object.keys(O.sc).length>=2?gStart():oAbort(O.targets.length>1?'Personne n\'a accepté le défi.':(PEERS[O.targets[0]]?.nom||'Ton ami')+' a refusé le défi.')}
 function gList(){NET.send({t:'glist',gid:O.gid,sc:O.sc,names:O.names,av:O.av,away:O.away||{}})}
 function gStart(){if(!O||Object.keys(O.sc).length<2)return;O.phase='wait';setTimeout(()=>NET.update(),50);NET.send({t:'gstart',gid:O.gid,sc:O.sc,names:O.names,av:O.av});say('C\'est parti !');oRender();setTimeout(oNextQ,1800)}
 function oNextQ(){if(!O||O.over)return;const i=O.i+1;
   if(i>=O.deck.length){NET.send({t:'end',gid:O.gid,sc:O.sc});oEnd(O.sc);return}
   NET.send({t:'q',gid:O.gid,i,dur:QDUR});oShowQ(i,QDUR)}
-function oShowQ(i,dur){
+function oShowQ(i,dur){if(O&&O.isHost)setTimeout(()=>NET&&NET.update(),60);
   oClr();Object.assign(O,{i,phase:'read',locked:{},marks:{},mine:null,listening:false,heard:'',res:null,pend:[],shown:performance.now(),end:Date.now()+dur,dur});
   oRender();say(O.deck[i].q);
   O.bi=setInterval(()=>{const b=$('#obar');if(b&&O)b.style.width=Math.max(0,(O.end-Date.now())/O.dur*100)+'%'},250);
@@ -708,7 +720,7 @@ function hostResolve(win){if(!O||O.phase!=='read')return;if(win)O.sc[win]=(O.sc[
 function oMiss(who){if(!O)return;O.locked[who]=true;O.marks[who]='x';
   if(who===myId){beep(200,.3);navigator.vibrate&&navigator.vibrate([60,60,60]);O.listening=false;try{rec&&rec.abort()}catch(e){}}
   oRender()}
-function oRes(m){if(!O)return;oClr();O.done=(O.done||0)+O.deck[O.i].p;O.phase='show';O.sc=m.sc;O.res=m;if(m.win)O.marks[m.win]='ok';oRender();
+function oRes(m){if(!O)return;oClr();O.done=(O.done||0)+O.deck[O.i].p;if(O.isHost)setTimeout(()=>NET&&NET.update(),60);O.phase='show';O.sc=m.sc;O.res=m;if(m.win)O.marks[m.win]='ok';oRender();
   const a=O.deck[O.i].a;if(m.win===myId){beep(1320,.12);setTimeout(()=>beep(1760,.15),130);say('Bravo ! '+a)}else if(m.win)say(O.names[m.win]+' a le point. '+a);else say('La réponse était : '+a)}
 function board(){const ids=Object.keys(O.sc).sort((a,b)=>O.sc[b]-O.sc[a]);
   return `<div class="board">${ids.map(id=>`<div class="sb ${id===myId?'self':''} ${O.away?.[id]?'away':''} ${O.marks?.[id]||''}">${avImg(O.av?.[id],'sav')}<span>${esc(O.names[id]||'?')}</span><b>${pct(O.sc[id],O.done||0)} %</b>${O.marks?.[id]==='x'?'<i>✗</i>':O.marks?.[id]==='ok'?'<i>✓</i>':''}</div>`).join('')}</div>`}
@@ -718,7 +730,7 @@ function oRender(){
     app.innerHTML=`<div class="room"><div class="top"><button class="x" data-act="oquit" aria-label="Annuler">✕</button><h2 style="font-size:20px">${O.targets?'Défi envoyé':'Partie de salle'}</h2></div>
     <div class="codebox"><small>${O.isHost?(O.targets?'En attente de la réponse…':'Les joueurs s\'inscrivent'):'Tu es inscrit !'}</small><div class="code" style="font-size:40px;letter-spacing:2px;padding:0">${n}</div><small>joueur${n>1?'s':''} · ${O.deck.length} questions</small></div>
     <div class="lbl">Inscrits</div>${Object.keys(O.sc).map(id=>`<div class="peer">${avImg(O.av?.[id],'pav')}<span class="dot"></span><div class="pn"><b>${esc(O.names[id])}${id===O.host?' (hôte)':''}</b></div></div>`).join('')}
-    ${O.isHost?(O.targets?'':`<button class="btn pri" style="width:100%;margin-top:16px;padding:16px;font-size:17px" data-act="ostart" ${n<2?'disabled':''}>${n<2?'En attente de joueurs…':'Commencer ('+n+' joueurs)'}</button>`):`<p class="note">En attente que ${hostN} commence…</p>`}</div>`;
+    ${O.isHost?(O.targets&&O.targets.length<2?'':`<button class="btn pri" style="width:100%;margin-top:16px;padding:16px;font-size:17px" data-act="ostart" ${n<2?'disabled':''}>${n<2?'En attente de joueurs…':'Commencer ('+n+' joueurs)'}</button>`):`<p class="note">En attente que ${hostN} commence…</p>`}</div>`;
     return}
   const q=O.deck[O.i];let z='';
   if(!q)z='<div class="state">Préparez-vous…</div>';
@@ -743,7 +755,7 @@ function oEnd(sc){
   say(win.includes(myId)?(win.length>1?'Égalité au premier rang !':'Victoire !'):(O.names[ids[0]]+' gagne la partie.'));
   app.innerHTML=`<div class="card end"><img src="icon-192.webp" alt=""><div class="big">${rank===1?(win.length>1?'Égalité !':'Victoire !'):rank+'e place'}</div>
   <ol class="podium">${ids.map((id,k)=>`<li class="${id===myId?'self':''}"><span>${k<3?['🥇','🥈','🥉'][k]:k+1+'.'}</span>${avImg(O.av?.[id],'pav')}<b>${esc(O.names[id]||'?')}</b><em>${pct(sc[id],O.deck.reduce((t,q)=>t+q.p,0))} %</em></li>`).join('')}</ol>
-  <div class="row" style="justify-content:center"><button class="btn pri" data-act="ogroup">Nouvelle partie</button><button class="btn" data-act="oroom">Retour à la salle</button></div>${emoBar()}</div><div id="emos"></div>`;
+  ${O.isHost&&O.waiting&&Object.keys(O.waiting).length?`<p class="note" style="text-align:center">Ils t'attendent : <b style="color:var(--gold)">${Object.values(O.waiting).map(esc).join(', ')}</b></p>`:''}<div class="row" style="justify-content:center"><button class="btn pri" data-act="ogroup">Nouvelle partie</button><button class="btn" data-act="oroom">Retour à la salle</button></div>${emoBar()}</div><div id="emos"></div>`;
 }
 function oAbort(msg){if(!O)return;oClr();O=null;if(NET)NET.update();roomRender(true);oStatus(msg)}
 app.addEventListener('pointerdown',e=>{const f=e.target.closest('[data-ofast]');if(f&&!f.disabled){e.preventDefault();oTap(+f.dataset.ofast);return}
@@ -771,6 +783,10 @@ Object.assign(ACT,{
   ogroup(){if(O&&O.over)O=null;oLaunch(null)},
   oinvite(b){if(O&&O.over)O=null;oLaunch([b.dataset.id])},
   ostart(){gStart()},
+  opick(b){const id=b.dataset.id;SEL.has(id)?SEL.delete(id):SEL.add(id);roomRender(true)},
+  oselclr(){SEL.clear();roomRender(true)},
+  osel(){const t=[...SEL].filter(id=>PEERS[id]&&!PEERS[id].busy);SEL.clear();if(!t.length){roomRender(true);return}if(O&&O.over)O=null;oLaunch(t)},
+  owait(b){const h=PEERS[b.dataset.id],g=h&&h.game;if(!g)return;NET.send({t:'wait',to:h.id,gid:g.gid,nom:myNom(),av:P?.av||0});waitingFor.add(g.gid);roomRender(true)},
   ojoinlive(b){const h=PEERS[b.dataset.id],g=h&&liveOf(h);if(!g){roomRender(true);return}toasts=toasts.filter(t=>!t.btn);drawLayer();stopOther();if(O&&O.over)O=null;
     O={gid:g.gid,host:h.id,isHost:false,deck:[],sc:{},names:{[h.id]:h.nom},av:{[h.id]:h.av||0},away:{},phase:'wait',over:false,i:-1,locked:{},marks:{}};
     NET.send({t:'gjoin',to:h.id,gid:g.gid,nom:myNom(),av:P?.av||0});NET.update();oRender();
