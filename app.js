@@ -12,6 +12,11 @@ const qid=q=>{const t=String(q.q||(q.clues&&q.clues.join(' '))||q.spell||'');let
 let STATS=null;const stats=()=>STATS||(STATS=store.get('geh-stats',{}));
 function record(q,ok){if(!q)return;const st=stats(),id=q.id||qid(q),r=st[id]||(st[id]={ok:0,ko:0,s:0});ok?(r.ok++,r.s++):(r.ko++,r.s=0);r.t=Date.now();store.set('geh-stats',st)}
 const MASTER=3;
+function recordSpeed(good,mine){const sp=store.get('geh-speed',{n:0,sum:0,best:0,opp:{}});
+  sp.n++;sp.sum+=mine.rt;sp.best=sp.best?Math.min(sp.best,mine.rt):mine.rt;
+  good.filter(x=>x.who!==myId).forEach(x=>{const o=sp.opp[x.who]||(sp.opp[x.who]={nom:'',w:0,l:0,t:0});o.nom=O.names[x.who]||o.nom;
+    Math.abs(x.rt-mine.rt)<100?o.t++:mine.rt<x.rt?o.w++:o.l++});
+  store.set('geh-speed',sp)}
 function level(q){const r=stats()[q.id||qid(q)];if(!r)return 'new';if(r.s>=MASTER)return 'acq';if(r.ko>r.ok||r.s===0)return 'weak';return 'prog'}
 function weakScore(q){const r=stats()[q.id||qid(q)];if(!r)return 1;if(r.s>=MASTER)return -10;return r.ko*2-r.ok-r.s*2+3}
 // ordre intelligent : les moins bien réussies d'abord, les acquis à la fin (ou exclus)
@@ -223,6 +228,9 @@ function statsScreen(){
   <div class="legend"><span><i class="m-weak"></i>À revoir ${c.weak}</span><span><i class="m-prog"></i>En progrès ${c.prog}</span><span><i class="m-acq"></i>Acquises ${c.acq}</span><span><i class="m-new"></i>Jamais vues ${c.new}</span></div></div>
   <div class="row"><button class="btn pri" style="flex:1" data-act="revweak" ${c.weak+c.prog?'':'disabled'}>Réviser mes points faibles (${c.weak+c.prog})</button></div>
   <small style="display:block;color:var(--mut);margin-top:6px">Une question est acquise après ${MASTER} bonnes réponses de suite. Une erreur la remet à revoir.</small>
+  ${(()=>{const sp=store.get('geh-speed',null);if(!sp||!sp.n)return'';const op=Object.values(sp.opp).sort((a,b)=>(b.w+b.l+b.t)-(a.w+a.l+a.t));
+    return `<div class="lbl">Rapidité en ligne (quand plusieurs ont la bonne réponse)</div><div class="codebox" style="text-align:left"><div style="display:flex;justify-content:space-around;text-align:center"><div><b style="font-size:22px">${fmtS(sp.sum/sp.n)}</b><small style="display:block">temps moyen</small></div><div><b style="font-size:22px">${fmtS(sp.best)}</b><small style="display:block">meilleur temps</small></div></div>
+    ${op.map(o=>`<div class="catrow"><div class="ct"><b>vs ${esc(o.nom||'?')}</b><small>${o.w+o.l+o.t} duels de vitesse</small></div><div style="flex:1;font-size:13px"><span class="g">${o.w}</span> gagnés · <span class="r">${o.l}</span> perdus${o.t?' · '+o.t+' même clic':''}</div></div>`).join('')}</div>`})()}
   <div class="lbl">Par catégorie (de la moins bonne à la meilleure)</div>
   ${cats.map(k=>{const Lc=L.filter(q=>q.c===k),cc=counts(Lc);return{k,Lc,cc,r:(cc.acq+cc.prog*.5)/Lc.length-(cc.weak/Lc.length)}}).sort((a,b)=>a.r-b.r).map(({k,Lc,cc})=>`<div class="catrow"><div class="ct"><b>${esc(k)}</b><small>${cc.acq}/${Lc.length} acquises${cc.weak?' · '+cc.weak+' à revoir':''}</small></div><div class="mbar">${mbar(Lc)}</div></div>`).join('')}
   ${hard.length?`<div class="lbl">Tes questions les plus difficiles</div><ul class="miss">${hard.map(q=>{const r=stats()[qid(q)];return `<li>${esc(q.q||(q.clues?q.clues.at(-1):'Épeler : '+q.s))}<span>${esc(answerOf(q))}</span><i>${r.ko} erreur${r.ko>1?'s':''} · ${r.ok} bonne${r.ok>1?'s':''}</i></li>`}).join('')}</ul>`:'<p class="note">Joue quelques parties : tes questions difficiles apparaîtront ici.</p>'}
@@ -246,7 +254,7 @@ const ACT={
   tacq(){S.incAcq=!S.incAcq;save();home()},
   stats(){statsScreen()},
   revweak(){const L=pool().filter(q=>['weak','prog'].includes(level(q)));if(L.length)startRev(L)},
-  statreset(b){if(Date.now()-rz<4000){STATS={};store.set('geh-stats',{});rz=0;statsScreen()}else{rz=Date.now();b.textContent='Touche encore pour confirmer'}},
+  statreset(b){if(Date.now()-rz<4000){STATS={};store.set('geh-stats',{});store.set('geh-speed',{n:0,sum:0,best:0,opp:{}});rz=0;statsScreen()}else{rz=Date.now();b.textContent='Touche encore pour confirmer'}},
   orate(b){S.rate=+b.dataset.r;save();home();if(S.rate)say(['Lecture lente.','Lecture normale.','Lecture rapide.'][[1,1.3,1.6].indexOf(S.rate)])},
   override(){const r=G.res[G.i];r.ok=true;r.pts=ptsOf(r.q,G.ci);G.score+=r.pts;exam()},
   revmiss(){startRev(G.missed)},
@@ -719,7 +727,7 @@ function onNet(m){
   else if(m.t==='miss')oMiss(m.who);
   else if(m.t==='res')oRes(m);
   else if(m.t==='elim')oElim(m);
-  else if(m.t==='end')oEnd(m.sc);
+  else if(m.t==='end')oEnd(m.sc,m.sp);
   else if(m.t==='gcancel')oAbort(m.why==='few'?'Partie annulée : il faut au moins 2 joueurs prêts.':'La partie a été annulée.');
 }
 function oLaunch(targets){
@@ -743,7 +751,7 @@ function groupDeck(){ // faiblesse combinée du groupe ; on saute ce que tout le
   const L=shuffle(scored).sort((a,b)=>b.w-a.w).map(x=>x.q);const n=(S.olen??10)||L.length;return (L.length?L:O.base).slice(0,n).map(packQ)}
 function gStart(){if(!O||Object.keys(O.sc).length<2)return;clearInterval(O.lt);if(O.fmt==='review'&&O.base)O.deck=groupDeck();O.phase='wait';setTimeout(()=>NET.update(),50);NET.send({t:'gstart',gid:O.gid,sc:O.sc,names:O.names,av:O.av,fmt:O.fmt,deck:O.fmt==='review'?O.deck:undefined});say('C\'est parti !');oRender();setTimeout(oNextQ,1800)}
 function oNextQ(){if(!O||O.over)return;const i=O.i+1;
-  if(i>=O.deck.length){NET.send({t:'end',gid:O.gid,sc:O.sc});oEnd(O.sc);return}
+  if(i>=O.deck.length){gEnd();return}
   const d=(O.qs||qsec(O.fmt))*1000;NET.send({t:'q',gid:O.gid,i,dur:d});oShowQ(i,d)}
 function oShowQ(i,dur){if(O&&O.isHost)setTimeout(()=>NET&&NET.update(),60);
   oClr();Object.assign(O,{i,phase:'read',locked:{},marks:{},mine:null,listening:false,heard:'',res:null,pend:[],shown:performance.now(),end:Date.now()+dur,dur});
@@ -767,26 +775,38 @@ function oListen(){
     try{r.start()}catch(e){}};
   start('fr-CA');
 }
-function hostAns(who,i,a){if(!O||O.phase!=='read'||i!==O.i||O.locked[who]||O.elim?.[who]||!(who in O.sc))return;O.pend.push({who,a});if(!O.grace)O.grace=setTimeout(hostJudge,350)}
+function attOk(a){const q=O.deck[O.i];return a.ok!==undefined?!!a.ok:q.ch[a.v]===q.a}
+function hostAns(who,i,a){
+  // réponse arrivée juste après la résolution : comptée pour la rapidité (bonne mais trop lente)
+  if(O&&O.phase==='show'&&i===O.i&&Date.now()-(O.resAt||0)<2000&&(O.att=O.att||{})&&!(O.att[i]||[]).some(x=>x.who===who)){(O.att[i]=O.att[i]||[]).push({who,rt:a.rt,ok:attOk(a),late:1});return}
+  if(!O||O.phase!=='read'||i!==O.i||O.locked[who]||O.elim?.[who]||!(who in O.sc))return;O.pend.push({who,a});if(!O.grace)O.grace=setTimeout(hostJudge,350)}
 function hostJudge(){
   O.grace=null;O.pend.sort((x,y)=>x.a.rt-y.a.rt);const q=O.deck[O.i];
   while(O.pend.length&&O.phase==='read'){const {who,a}=O.pend.shift();if(O.locked[who])continue;
-    const ok=a.ok!==undefined?!!a.ok:q.ch[a.v]===q.a;
-    if(ok){hostResolve(who);return}
+    const ok=attOk(a);O.att=O.att||{};(O.att[O.i]=O.att[O.i]||[]).push({who,rt:a.rt,ok});
+    if(ok){O.pend.filter(x=>!O.locked[x.who]&&x.who!==who).forEach(x=>O.att[O.i].push({who:x.who,rt:x.a.rt,ok:attOk(x.a)}));O.pend=[];hostResolve(who);return}
     NET.send({t:'miss',gid:O.gid,who});oMiss(who)}
   hostAllLocked();
 }
+function speedSum(){ // par joueur : temps moyen des bonnes réponses, meilleur, gagnés/perdus au clic ; duels 2 à 2
+  const S2={},pw={},add=(id)=>S2[id]=S2[id]||{n:0,sum:0,best:0,won:0,lost:0,tie:0};
+  Object.values(O.att||{}).forEach(L=>{const good=L.filter(x=>x.ok).sort((a,b)=>a.rt-b.rt);
+    L.forEach(x=>{add(x.who);if(x.ok){const r=S2[x.who];r.n++;r.sum+=x.rt;r.best=r.best?Math.min(r.best,x.rt):x.rt}});
+    if(good.length>1){const w=good[0];good.slice(1).forEach(x=>{const tie=x.rt-w.rt<100;tie?(S2[w.who].tie++,S2[x.who].tie++):(S2[w.who].won++,S2[x.who].lost++)})}
+    for(let a=0;a<good.length;a++)for(let b=a+1;b<good.length;b++){const f=good[a].who,sl=good[b].who;(pw[f]=pw[f]||{})[sl]=((pw[f]||{})[sl]||0)+1}});
+  return {s:S2,pw}}
+function gEnd(){const sp=speedSum();NET.send({t:'end',gid:O.gid,sc:O.sc,sp});oEnd(O.sc,sp)}
 function hostAllLocked(){if(O&&O.phase==='read'&&Object.keys(O.sc).filter(id=>!O.away?.[id]&&!O.elim?.[id]).every(id=>O.locked[id]))hostResolve(null)}
 function hostResolve(win){if(!O||O.phase!=='read')return;if(win)O.sc[win]=(O.sc[win]||0)+O.deck[O.i].p;
-  const m={t:'res',gid:O.gid,i:O.i,win,sc:O.sc};NET.send(m);oRes(m);
+  O.resAt=Date.now();const m={t:'res',gid:O.gid,i:O.i,win,sc:O.sc,att:(O.att&&O.att[O.i]||[]).map(x=>({who:x.who,rt:Math.round(x.rt),ok:x.ok}))};NET.send(m);oRes(m);
   if(O.fmt==='tourney'&&(O.i+1)%RND===0)setTimeout(tourneyCut,2500);else setTimeout(oNextQ,O.fmt==='blitz'?1500:3000)}
 // tournoi : à la fin de chaque manche, le ou les derniers sont éliminés
 function tourneyCut(){
   if(!O||O.over)return;const act=Object.keys(O.sc).filter(id=>!O.away?.[id]&&!O.elim?.[id]);
-  if(act.length<=1){NET.send({t:'end',gid:O.gid,sc:O.sc});oEnd(O.sc);return}
+  if(act.length<=1){gEnd();return}
   const lo=Math.min(...act.map(id=>O.sc[id])),out=act.filter(id=>O.sc[id]===lo);
   const ids=out.length<act.length?out:[];const m={t:'elim',gid:O.gid,ids,round:(O.i+1)/RND};NET.send(m);oElim(m);
-  const left=act.length-ids.length;setTimeout(()=>{if(!O||O.over)return;if(left<=1){NET.send({t:'end',gid:O.gid,sc:O.sc});oEnd(O.sc)}else oNextQ()},4500);
+  const left=act.length-ids.length;setTimeout(()=>{if(!O||O.over)return;if(left<=1){gEnd()}else oNextQ()},4500);
 }
 function oElim(m){if(!O)return;O.elim=O.elim||{};m.ids.forEach(id=>O.elim[id]=true);O.phase='cut';O.cut=m;oRender();
   const n=m.ids.map(id=>O.names[id]).join(' et ');
@@ -794,7 +814,10 @@ function oElim(m){if(!O)return;O.elim=O.elim||{};m.ids.forEach(id=>O.elim[id]=tr
 function oMiss(who){if(!O)return;if(who===myId&&!O.locked[myId]&&!O.spectator)record(O.deck[O.i],false);O.locked[who]=true;O.marks[who]='x';
   if(who===myId){beep(200,.3);navigator.vibrate&&navigator.vibrate([60,60,60]);O.listening=false;try{rec&&rec.abort()}catch(e){}}
   oRender()}
-function oRes(m){if(!O)return;oClr();if(!O.spectator&&!O.locked[myId]&&(m.win===myId||O.mine==='ok'||(O.mine!=null&&O.deck[O.i].ch[O.mine]===O.deck[O.i].a)))record(O.deck[O.i],true);O.done=(O.done||0)+O.deck[O.i].p;if(O.isHost)setTimeout(()=>NET&&NET.update(),60);O.phase='show';O.sc=m.sc;O.res=m;if(m.win)O.marks[m.win]='ok';oRender();
+const fmtS=ms=>(ms/1000).toFixed(1).replace('.',',')+' s';
+function attLine(att){if(!att||!att.length)return'';const L=[...att].sort((a,b)=>a.rt-b.rt).slice(0,5),w=L.find(x=>x.ok);
+  return `<div class="att">${L.map(x=>`<span class="${x.ok?'ok':'ko'} ${x.who===myId?'mine':''}">${esc(x.who===myId?'Toi':O.names[x.who]||'?')} ${fmtS(x.rt)} ${x.ok?'✓':'✗'}${x.ok&&w&&x!==w?(x.rt-w.rt<100?' · même clic':' · +'+fmtS(x.rt-w.rt)):''}</span>`).join('')}</div>`}
+function oRes(m){if(!O)return;oClr();if(m.att&&m.att.length){const mine=m.att.find(x=>x.who===myId),good=m.att.filter(x=>x.ok).sort((a,b)=>a.rt-b.rt);if(mine&&mine.ok&&good.length>1)recordSpeed(good,mine)}if(!O.spectator&&!O.locked[myId]&&(m.win===myId||O.mine==='ok'||(O.mine!=null&&O.deck[O.i].ch[O.mine]===O.deck[O.i].a)))record(O.deck[O.i],true);O.done=(O.done||0)+O.deck[O.i].p;if(O.isHost)setTimeout(()=>NET&&NET.update(),60);O.phase='show';O.sc=m.sc;O.res=m;if(m.win)O.marks[m.win]='ok';oRender();
   const a=O.deck[O.i].a;if(m.win===myId){beep(1320,.12);setTimeout(()=>beep(1760,.15),130);say('Bravo ! '+a)}else if(m.win)say(O.names[m.win]+' a le point. '+a);else say('La réponse était : '+a)}
 function board(){const ids=Object.keys(O.sc).sort((a,b)=>O.sc[b]-O.sc[a]);
   return `<div class="board">${ids.map(id=>`<div class="sb ${id===myId?'self':''} ${O.away?.[id]||O.elim?.[id]?'away':''} ${O.marks?.[id]||''}">${avImg(O.av?.[id],'sav')}<span>${esc(O.names[id]||'?')}</span><b>${pct(O.sc[id],O.done||0)} %</b>${O.marks?.[id]==='x'?'<i>✗</i>':O.marks?.[id]==='ok'?'<i>✓</i>':''}</div>`).join('')}</div>`}
@@ -809,7 +832,7 @@ function oRender(){
     return}
   const q=O.deck[O.i];let z='';
   if(!q)z='<div class="state">Préparez-vous…</div>';
-  else if(O.phase==='show'){const r=O.res;z=`<div class="state ${r.win===myId?'win':r.win?'lose':''}">${r.win?avImg(O.av?.[r.win],'wav'):''}<small>${r.win===myId?'Bonne réponse !':r.win?esc(O.names[r.win])+' a eu le point':'Personne n\'a trouvé'}</small><div class="big2">${esc(q.a)}</div></div>`}
+  else if(O.phase==='show'){const r=O.res;z=`<div class="state ${r.win===myId?'win':r.win?'lose':''}">${r.win?avImg(O.av?.[r.win],'wav'):''}<small>${r.win===myId?'Bonne réponse !':r.win?esc(O.names[r.win])+' a eu le point':'Personne n\'a trouvé'}</small><div class="big2">${esc(q.a)}</div>${attLine(r.att)}</div>`}
   else if(O.phase==='cut'){const c=O.cut;z=`<div class="state ${c.ids.includes(myId)?'lose':''}"><small>Fin de la manche ${c.round}</small><div class="big2">${c.ids.includes(myId)?'Tu es éliminé·e':c.ids.length?c.ids.map(id=>esc(O.names[id])).join(', ')+(c.ids.length>1?' éliminés':' éliminé·e'):'Égalité : personne n\'est éliminé'}</div><small>${c.ids.includes(myId)?'Tu peux regarder la suite du tournoi.':Object.keys(O.sc).filter(id=>!O.elim?.[id]&&!O.away?.[id]).length+' joueurs encore en lice'}</small></div>`}
   else if(O.elim?.[myId])z=`<div class="state">Éliminé·e<small>Tu regardes la suite du tournoi.</small></div>`;
   else if(O.spectator)z=`<div class="state">Tu regardes la partie<small>Coche « Prêt » dans la salle pour jouer la prochaine.</small></div>`;
@@ -827,14 +850,21 @@ const emoBar=()=>`<div class="emobar">${EMOS.map((e,i)=>`<button data-act="oemo"
   <div class="quick">${QUICK.map((t,i)=>`<button data-act="oemo" data-e="${100+i}">${t}</button>`).join('')}</div>`;
 let lastEmo=0;
 function showEmo(id,i){const box=$('#emos'),t=i>=100?QUICK[i-100]:EMOS[i];if(!box||!t)return;const d=document.createElement('div');d.className='emo'+(i>=100?' txt':'');d.innerHTML=`${avImg(O&&O.av?.[id],'eav')}<span>${esc((O&&O.names[id])||'?')}</span>${esc(t)}`;box.appendChild(d);setTimeout(()=>d.remove(),2600)}
-function oEnd(sc){
+function oEnd(sc,sp){
   if(!O)return;oClr();O.over=true;O.sc=sc;NET.update();
   const ids=Object.keys(sc).sort((a,b)=>sc[b]-sc[a]),rank=ids.indexOf(myId)+1,top=sc[ids[0]],win=ids.filter(id=>sc[id]===top);
   say(win.includes(myId)?(win.length>1?'Égalité au premier rang !':'Victoire !'):(O.names[ids[0]]+' gagne la partie.'));
   app.innerHTML=`<div class="card end"><img src="icon-192.webp" alt=""><div class="big">${rank===1?(win.length>1?'Égalité !':'Victoire !'):rank+'e place'}</div>
+  ${sp&&sp.s?speedTable(sp):''}
   <ol class="podium">${ids.map((id,k)=>`<li class="${id===myId?'self':''}"><span>${k<3?['🥇','🥈','🥉'][k]:k+1+'.'}</span>${avImg(O.av?.[id],'pav')}<b>${esc(O.names[id]||'?')}</b><em>${pct(sc[id],O.done||O.deck.reduce((t,q)=>t+q.p,0))} %</em></li>`).join('')}</ol>
   ${O.isHost&&O.waiting&&Object.keys(O.waiting).length?`<p class="note" style="text-align:center">Ils t'attendent : <b style="color:var(--gold)">${Object.values(O.waiting).map(esc).join(', ')}</b></p>`:''}<div class="row" style="justify-content:center"><button class="btn pri" data-act="ogroup">Nouvelle partie</button><button class="btn" data-act="oroom">Retour à la salle</button></div>${emoBar()}</div><div id="emos"></div>`;
 }
+function speedTable(sp){const ids=Object.keys(sp.s).filter(id=>sp.s[id].n);if(!ids.length)return'';
+  ids.sort((a,b)=>sp.s[a].sum/sp.s[a].n-sp.s[b].sum/sp.s[b].n);
+  const me=sp.s[myId],pw=sp.pw||{};
+  return `<div class="lbl" style="text-align:left">Rapidité (bonnes réponses)</div><table class="spd"><tr><th>Joueur</th><th>Moy.</th><th>Meilleur</th><th>Gagnés au clic</th><th>Perdus</th></tr>
+  ${ids.map(id=>{const r=sp.s[id];return `<tr class="${id===myId?'self':''}"><td>${avImg(O.av?.[id],'sav')} ${esc(O.names[id]||'?')}</td><td>${fmtS(r.sum/r.n)}</td><td>${fmtS(r.best)}</td><td>${r.won}${r.tie?` <small>(${r.tie} égal.)</small>`:''}</td><td>${r.lost}</td></tr>`}).join('')}</table>
+  ${me?`<div class="vs2">${Object.keys(O.sc).filter(id=>id!==myId).map(id=>{const w=(pw[myId]||{})[id]||0,l=(pw[id]||{})[myId]||0;return w+l?`<span>Toi vs ${esc(O.names[id])} : <b class="g">${w}</b> plus vite · <b class="r">${l}</b> moins vite</span>`:''}).join('')}</div>`:''}`}
 function oAbort(msg){if(!O)return;oClr();clearInterval(O.lt);O=null;if(NET)NET.update();roomRender(true);oStatus(msg);toast(esc(msg),null,6000)}
 app.addEventListener('pointerdown',e=>{const f=e.target.closest('[data-ofast]');if(f&&!f.disabled){e.preventDefault();oTap(+f.dataset.ofast);return}
   if(e.target.closest('[data-obuzz]')){e.preventDefault();oBuzz()}});
