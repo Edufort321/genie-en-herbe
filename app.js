@@ -45,14 +45,17 @@ const blank=q=>esc(q.s).replace(new RegExp(q.spell,'i'),'<b style="color:var(--g
 
 // ---------- banques ----------
 const mine=()=>store.get('geh-mine',[]);
-const SRC={mine:()=>[...SHEET,...mine()],divers:()=>DIVERS};
+const CULTURE=window.CULTURE||[];
+const SRC={mine:()=>[...SHEET,...mine()],divers:()=>DIVERS,culture:()=>CULTURE};
+const DIF=['','Facile','Moyen','Difficile'];
 let S=store.get('geh-prefs',{src:'mine',cats:{},lv:[1,2,3,4,5],len:20,timer:true});
-if(!SRC[S.src])S.src='mine';
+if(!SRC[S.src])S.src='mine';if(!S.dif)S.dif=[1,2,3];
 const save=()=>store.set('geh-prefs',S);
 const catsOf=src=>[...new Set(SRC[src]().map(q=>q.c))];
 function pool(){
   let list=SRC[S.src]();
   if(S.src==='divers')list=list.filter(q=>S.lv.includes(q.n));
+  if(S.src==='culture')list=list.filter(q=>S.dif.includes(q.lvl||2));
   const off=S.cats[S.src]||[];
   return list.filter(q=>!off.includes(q.c));
 }
@@ -70,7 +73,8 @@ function home(){
   app.innerHTML=`
   <div class="hero"><img src="icon-192.webp" alt="Logo Génie en herbe"><div><h1>Génie en herbe</h1><p>${P?['Salut '+esc(P.nom),esc(P.ecole)].filter(Boolean).join(' · '):'Révise, teste-toi, deviens imbattable.'}</p></div>${P?`<button class="me ${P.av?'hasav':''}" data-act="profil" aria-label="Mon profil">${P.av?avImg(P.av,'meav'):esc(P.nom.trim()[0]||'?').toUpperCase()}</button>`:''}</div>
   <button class="pill" id="pill" data-go="online" style="display:none"></button>
-  <div class="tabs">${tab('mine','Mes questions',SHEET.length+mine().length)}${tab('divers','Divers',DIVERS.length)}</div>
+  <div class="tabs">${tab('mine','Mes questions',SHEET.length+mine().length)}${tab('culture','Culture G',CULTURE.length)}${tab('divers','Divers',DIVERS.length)}</div>
+  ${S.src==='culture'?fold('dif','Difficulté',S.dif.length===3?'Tous les niveaux':S.dif.map(l=>DIF[l]).join(', '),`<div class="chips">${[1,2,3].map(l=>`<button class="chip gold ${S.dif.includes(l)?'on':''}" data-dif="${l}">${DIF[l]} <small>${CULTURE.filter(q=>q.lvl===l).length}</small></button>`).join('')}</div>`):''}
   ${S.src==='divers'?fold('lv','Niveau',S.lv.length===5?'Sec 1 à 5':S.lv.map(l=>'Sec '+l).join(', '),`<div class="chips">${[1,2,3,4,5].map(l=>`<button class="chip gold ${S.lv.includes(l)?'on':''}" data-lv="${l}">Sec ${l}</button>`).join('')}</div>`):''}
   ${false?`<div class="drop" id="drop0"><h3>Aucun document pour l'instant</h3><p>Glisse des photos de feuilles de questions, ou un fichier .txt / .csv / .json.</p><div class="row" style="justify-content:center"><button class="btn gold" data-go="import">Ajouter des documents</button></div></div>`:`
   ${fold('cat','Catégories',off.length?`${cats.length-off.length} sur ${cats.length}`:'Toutes',`<div class="chips"><button class="chip ${off.length?'':'on'}" data-all>Toutes</button>${cats.map(c=>`<button class="chip ${off.includes(c)?'':'on'}" data-cat="${esc(c)}">${esc(c)}</button>`).join('')}</div>`)}
@@ -93,6 +97,7 @@ function home(){
 app.addEventListener('click',e=>{
   const b=e.target.closest('button');if(!b)return;const d=b.dataset;
   if(d.src){S.src=d.src;save();home()}
+  else if(d.dif){const l=+d.dif;S.dif=S.dif.includes(l)?S.dif.filter(x=>x!==l):[...S.dif,l].sort();if(!S.dif.length)S.dif=[l];save();home()}
   else if(d.lv){const l=+d.lv;S.lv=S.lv.includes(l)?S.lv.filter(x=>x!==l):[...S.lv,l].sort();if(!S.lv.length)S.lv=[l];save();home()}
   else if('all' in d){S.cats[S.src]=[];save();home()}
   else if(d.cat){const o=S.cats[S.src]||[];const c=d.cat;let nx=o.includes(c)?o.filter(x=>x!==c):[...o,c];if(nx.length>=catsOf(S.src).length)nx=catsOf(S.src).filter(x=>x!==c);S.cats[S.src]=nx;save();home()}
@@ -110,7 +115,7 @@ app.addEventListener('click',e=>{
 
 // ---------- rendu question ----------
 function qBlock(q,ci,reveal){
-  let h=`<span class="tag">${esc(q.c)}${q.n?` <em>Sec ${q.n}</em>`:''}${G.mode==='exam'?` <em>${ptsOf(q,ci)} pts</em>`:''}</span>`;
+  let h=`<span class="tag">${esc(q.c)}${q.n?` <em>Sec ${q.n}</em>`:q.lvl?` <em>${DIF[q.lvl]}</em>`:''}${G.mode==='exam'?` <em>${ptsOf(q,ci)} pts</em>`:''}</span>`;
   if(q.clues){h+=q.clues.slice(0,ci+1).map((c,i)=>`<div class="clue"><b>${q.pts[i]} p.</b>${esc(c)}</div>`).join('')}
   else if(q.spell){h+=`<div class="q">Comment épelle-t-on le mot manquant ?</div><div class="clue">${reveal?esc(q.s):blank(q)}</div><button class="say" data-act="say">Écouter le mot et la phrase</button>`}
   else h+=`<div class="q">${esc(q.q)}</div>`;
@@ -140,7 +145,7 @@ function choicesFor(q){
   else if(GRAM.includes(ans))d=shuffle(GRAM.filter(x=>x!==ans)).slice(0,3);
   else if(/^\d+$/.test(norm(ans))){const n=+norm(ans),st=n>1000?[-10,10,-100,25]:n>100?[-10,10,20,-20,100]:[-2,-1,1,2,n];d=shuffle([...new Set(st.map(x=>n+x).filter(x=>x>0&&x!==n))]).slice(0,3).map(String)}
   if(d.length<3){
-    const all=[...SRC[S.src](),...SHEET,...DIVERS],seen=new Set([norm(ans)]),pick=list=>shuffle(list).sort((x,y)=>Math.abs(wc(answerOf(x))-wc(ans))-Math.abs(wc(answerOf(y))-wc(ans))).forEach(x=>{const t=answerOf(x),n=norm(t);if(d.length<3&&!seen.has(n)&&!x.spell&&!isRight(q,t)){seen.add(n);d.push(t)}});
+    const all=[...SRC[S.src](),...SHEET,...DIVERS,...CULTURE],seen=new Set([norm(ans)]),pick=list=>shuffle(list).sort((x,y)=>Math.abs(wc(answerOf(x))-wc(ans))-Math.abs(wc(answerOf(y))-wc(ans))).forEach(x=>{const t=answerOf(x),n=norm(t);if(d.length<3&&!seen.has(n)&&!x.spell&&!isRight(q,t)){seen.add(n);d.push(t)}});
     d.forEach(t=>seen.add(norm(t)));
     pick(all.filter(x=>x.c===q.c&&x!==q));pick(all.filter(x=>x!==q));
   }
@@ -270,21 +275,71 @@ document.addEventListener('keydown',e=>{
 
 // ---------- import ----------
 let pending='';
+// ---------- import : capture d'écran + remplissage IA ----------
+let AIQ=[],aiBusy=false;
 function importScreen(){
   stopTimer();G=null;const m=mine();
   app.innerHTML=`<div class="top"><button class="x" data-go="home" aria-label="Retour">✕</button><h2 style="font-size:22px">Mes questions perso</h2></div>
-  <div class="drop" id="drop"><h3>Glisse tes fichiers ici</h3><p>Photos de feuilles (lecture automatique du texte), ou fichiers .txt, .csv, .json.<br>Format texte : une question par ligne, <b>question | réponse</b></p>
-  <div class="row" style="justify-content:center"><label class="btn gold" style="cursor:pointer">Choisir des fichiers<input type="file" id="file" multiple accept="image/*,.txt,.csv,.json" hidden></label></div></div>
+  <div class="drop" id="drop"><h3>Captures d'écran ou photos de feuilles</h3><p>L'IA lit chaque question, trouve la réponse et prépare 3 mauvais choix crédibles. Tu vérifies avant d'ajouter.</p>
+  <div class="row" style="justify-content:center"><label class="btn gold" style="cursor:pointer">Choisir des captures<input type="file" id="aifile" multiple accept="image/*" hidden></label></div>
+  <details class="fold" style="margin-top:12px;text-align:left"><summary><span>Ou coller du texte</span></summary><div class="fb"><textarea class="in" id="aitxt" style="min-height:120px" placeholder="Colle ici des questions (avec ou sans réponses)…"></textarea><button class="btn" style="margin-top:8px" data-act="aitext">Remplir avec l'IA</button></div></details></div>
+  <div id="aicode" style="display:none" class="row"><input class="in" id="aicodein" style="margin:0;flex:1;font-size:15px" placeholder="Code d'accès à l'IA"><button class="btn pri" data-act="aicode">OK</button></div>
   <div id="stat" class="note"></div>
-  <div id="ed" style="${pending?'':'display:none'}"><div class="lbl">Vérifie avant d'ajouter (question | réponse)</div>
-  <textarea class="in" id="txt">${esc(pending)}</textarea>
-  <div class="row"><input class="in" id="cat" style="margin:0;flex:1;font-size:15px" placeholder="Catégorie (ex. Feuille 2021-22)" value="Feuille importée"><button class="btn pri" data-act="doimport">Ajouter</button></div></div>
-  <div class="note">Questions importées de tes photos et documents : <b style="color:var(--gold)">${m.length}</b> questions enregistrées sur cet appareil.</div>
+  <div id="aiq"></div>
+  <details class="fold"><summary><span>Sans IA (texte ou fichier)</span><em>question | réponse</em></summary><div class="fb">
+  <p class="note" style="margin-top:0">Fichiers .txt, .csv ou .json, ou photo lue sans IA. Format : une question par ligne, <b>question | réponse</b>.</p>
+  <label class="btn" style="cursor:pointer;display:inline-block">Choisir des fichiers<input type="file" id="file" multiple accept="image/*,.txt,.csv,.json" hidden></label>
+  <div id="ed" style="${pending?'':'display:none'}"><textarea class="in" id="txt">${esc(pending)}</textarea>
+  <div class="row"><input class="in" id="cat" style="margin:0;flex:1;font-size:15px" placeholder="Catégorie" value="Feuille importée"><button class="btn pri" data-act="doimport">Ajouter</button></div></div></div></details>
+  <div class="note">Questions perso enregistrées sur cet appareil : <b style="color:var(--gold)">${m.length}</b></div>
   ${m.length?`<div class="row"><button class="btn" data-act="export">Exporter (.json)</button><button class="btn bad" data-act="wipe">Tout effacer</button></div>`:''}`;
   const dz=$('#drop');
   ['dragenter','dragover'].forEach(t=>dz.addEventListener(t,e=>{e.preventDefault();dz.classList.add('hov')}));
   ['dragleave','drop'].forEach(t=>dz.addEventListener(t,()=>dz.classList.remove('hov')));
   $('#file').addEventListener('change',e=>handleFiles(e.target.files));
+  $('#aifile').addEventListener('change',e=>aiFiles([...e.target.files]));
+  aiRender();
+}
+function shrink(file){return new Promise((res,rej)=>{const img=new Image(),u=URL.createObjectURL(file);
+  img.onload=()=>{const M=1600,r=Math.min(1,M/Math.max(img.width,img.height)),c=document.createElement('canvas');c.width=Math.round(img.width*r);c.height=Math.round(img.height*r);
+    c.getContext('2d').drawImage(img,0,0,c.width,c.height);URL.revokeObjectURL(u);res({type:'image/jpeg',data:c.toDataURL('image/jpeg',.82).split(',')[1]})};
+  img.onerror=()=>rej(new Error('image illisible'));img.src=u})}
+let aiLast=null;
+async function aiCall(payload){
+  const r=await fetch('/api/extraire',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({...payload,code:S.aiCode||''})});
+  let j={};try{j=await r.json()}catch(e){}
+  if(r.status===401&&j.needCode){aiLast=payload;$('#aicode').style.display='';throw new Error('Entre le code d\'accès à l\'IA, puis touche OK.')}
+  if(!r.ok)throw new Error(j.error||('erreur '+r.status));
+  return j.questions||[];
+}
+async function aiRun(batches){
+  if(aiBusy)return;aiBusy=true;const st=$('#stat');let n=0;
+  try{for(const [i,b] of batches.entries()){st.textContent=`L'IA lit ${batches.length>1?'le lot '+(i+1)+'/'+batches.length:'ta feuille'}… (environ 20 s)`;
+      const qs=await aiCall(b);AIQ.push(...qs.map(q=>({...q,keep:true})));n+=qs.length;aiRender()}
+    st.textContent=n?`${n} questions trouvées. Vérifie-les, puis touche « Ajouter ».`:'Aucune question trouvée. Essaie une image plus nette ou plus rapprochée.'}
+  catch(e){st.textContent=e.message}
+  aiBusy=false;
+}
+async function aiFiles(files){
+  files=files.filter(f=>f.type.startsWith('image/'));if(!files.length)return;if(!$('#aifile'))importScreen();
+  $('#stat').textContent='Préparation des images…';
+  const imgs=[];for(const f of files){try{imgs.push(await shrink(f))}catch(e){}}
+  const batches=[];for(let i=0;i<imgs.length;i+=3)batches.push({images:imgs.slice(i,i+3)});
+  aiRun(batches);
+}
+const LV=['','Facile','Moyen','Difficile'];
+function aiRender(){
+  const box=$('#aiq');if(!box)return;const k=AIQ.filter(q=>q.keep).length;
+  if(!AIQ.length){box.innerHTML='';return}
+  box.innerHTML=`<div class="lbl">À vérifier (${k} retenue${k>1?'s':''})</div>
+  ${AIQ.map((q,i)=>`<div class="aic ${q.keep?'':'off'}" data-i="${i}">
+    <div class="aih"><input class="ain" data-f="c" value="${esc(q.c)}" placeholder="Catégorie"><select class="ain" data-f="lvl">${[1,2,3].map(l=>`<option value="${l}" ${q.lvl===l?'selected':''}>${LV[l]}</option>`).join('')}</select><button class="tx" data-act="aitog" data-i="${i}" aria-label="Retirer">${q.keep?'✕':'↺'}</button></div>
+    <textarea class="ain aq" data-f="q" rows="2">${esc(q.q)}</textarea>
+    <label class="al">Réponse</label><input class="ain ${q.a?'':'miss'}" data-f="a" value="${esc(q.a)}" placeholder="Réponse à compléter">
+    <label class="al">Mauvais choix (séparés par ;)</label><input class="ain" data-f="d" value="${esc((q.d||[]).join(' ; '))}"></div>`).join('')}
+  <div class="row aibar"><button class="btn pri" style="flex:1" data-act="aisave" ${k?'':'disabled'}>Ajouter ${k} question${k>1?'s':''}</button><button class="btn ghost" data-act="aiclear">Tout annuler</button></div>`;
+  box.querySelectorAll('.ain').forEach(el=>el.addEventListener('input',()=>{const i=+el.closest('.aic').dataset.i,f=el.dataset.f,q=AIQ[i];
+    if(f==='d')q.d=el.value.split(';').map(x=>x.trim()).filter(Boolean);else if(f==='lvl')q.lvl=+el.value;else q[f]=el.value;if(f==='a'){q.k=null;el.classList.toggle('miss',!el.value.trim())}}));
 }
 function linesFromParsed(arr){return arr.map(o=>`${(o.q||'').replace(/\|/g,'/')} | ${o.a||''}`).join('\n')}
 function parseOcr(text){
@@ -322,6 +377,15 @@ async function handleFiles(files){
   $('#ed').style.display='';$('#txt').value=pending;
 }
 Object.assign(ACT,{
+  aitext(){const t=$('#aitxt').value.trim();if(t)aiRun([{texte:t}])},
+  aicode(){S.aiCode=$('#aicodein').value.trim();save();$('#aicode').style.display='none';if(aiLast)aiRun([aiLast])},
+  aitog(b){const q=AIQ[+b.dataset.i];q.keep=!q.keep;aiRender()},
+  aiclear(){AIQ=[];aiRender();$('#stat').textContent=''},
+  aisave(){const ok=AIQ.filter(q=>q.keep&&q.q.trim()&&q.a.trim()),miss=AIQ.filter(q=>q.keep&&!q.a.trim()).length;
+    const add=ok.map(q=>({c:(q.c||'Feuille importée').trim(),lvl:q.lvl||2,q:q.q.trim(),a:q.a.trim(),k:q.k&&q.k.length?q.k:autoKeys(q.a),...(q.d&&q.d.length>=3?{d:q.d.slice(0,3)}:{})}));
+    if(!add.length){$('#stat').textContent='Complète au moins une réponse avant d\'ajouter.';return}
+    store.set('geh-mine',[...mine(),...add]);AIQ=AIQ.filter(q=>q.keep&&!q.a.trim());S.src='mine';save();importScreen();
+    $('#stat').textContent=add.length+(add.length>1?' questions ajoutées':' question ajoutée')+' dans Mes questions.'+(miss?' '+miss+' sans réponse à compléter.':'')},
   doimport(){
     const cat=($('#cat').value||'Feuille importée').trim();
     const add=$('#txt').value.split('\n').map(l=>l.split('|')).filter(p=>p.length>=2&&p[0].trim()&&p[1].trim()).map(p=>({c:cat,q:p[0].trim(),a:p.slice(1).join('|').trim(),k:autoKeys(p.slice(1).join('|'))}));
@@ -337,7 +401,7 @@ let dc=0;const cover=$('#dragcover');
 addEventListener('dragenter',e=>{if(e.dataTransfer?.types?.includes('Files')){dc++;cover.style.display='flex'}});
 addEventListener('dragleave',()=>{if(--dc<=0){dc=0;cover.style.display='none'}});
 addEventListener('dragover',e=>e.preventDefault());
-addEventListener('drop',e=>{e.preventDefault();dc=0;cover.style.display='none';if(e.dataTransfer.files.length)handleFiles(e.dataTransfer.files)});
+addEventListener('drop',e=>{e.preventDefault();dc=0;cover.style.display='none';const f=[...e.dataTransfer.files];if(!f.length)return;const im=f.filter(x=>x.type.startsWith('image/')),ot=f.filter(x=>!x.type.startsWith('image/'));if(im.length){if(!$('#aifile'))importScreen();aiFiles(im)}if(ot.length)handleFiles(ot)});
 
 // ---------- PWA ----------
 let installEvt=null;

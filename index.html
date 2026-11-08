@@ -259,6 +259,12 @@ textarea.in{font-size:14px;min-height:240px;font-family:ui-monospace,Menlo,monos
 .spd{width:100%;border-collapse:collapse;font-size:13px;margin-top:6px}.spd th{color:var(--mut);font-weight:600;font-size:11px;text-align:left;padding:6px 4px}
 .spd td{padding:7px 4px;border-top:1px solid var(--line);text-align:left}.spd td:first-child{display:flex;align-items:center;gap:6px}.g{font-weight:800}.r{font-weight:800}.spd tr.self td{color:var(--cyan)}
 .vs2{display:flex;flex-direction:column;gap:4px;margin-top:10px;font-size:13px;text-align:left}.g{color:var(--good)}.r{color:var(--bad)}
+.aibar{position:sticky;bottom:0;padding:10px 0;background:linear-gradient(transparent,var(--bg) 30%);flex-wrap:nowrap}.aibar .btn{white-space:nowrap}
+.aic{margin-top:10px;padding:12px;border-radius:16px;background:var(--card);border:1px solid var(--line)}.aic.off{opacity:.4}
+.aih{display:flex;gap:6px;align-items:center}.aih .ain:first-child{flex:1}
+.ain{width:100%;font:inherit;font-size:14px;color:#fff;background:rgba(5,9,35,.7);border:1px solid var(--line);border-radius:10px;padding:8px 10px;margin-top:6px}
+.aih .ain{margin-top:0;width:auto}.aq{min-height:56px;font-size:15px}.ain.miss{border-color:var(--bad)}
+.al{display:block;font-size:11px;color:var(--mut);margin-top:8px;text-transform:uppercase;letter-spacing:1px}
 .sb.away{opacity:.4}
 .fold{margin-top:10px;border:1px solid var(--line);border-radius:16px;background:rgba(10,16,50,.55);overflow:hidden}
 .fold summary{list-style:none;display:flex;align-items:center;gap:10px;padding:13px 14px;cursor:pointer;font-weight:600;font-size:15px}
@@ -294,6 +300,7 @@ input.in{margin-top:12px;font-size:17px;padding:13px 14px}
 <div id="dragcover">Dépose tes documents ici</div>
 <script src="config.js"></script>
 <script src="data.js"></script>
+<script src="culture.js"></script>
 <script src="app.js"></script>
 </body>
 </html>
