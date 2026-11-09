@@ -112,6 +112,7 @@ const D={
 'Recommencer':'Start over','Relancer le micro':'Restart the mic','Revanche':'Rematch','Écouter le mot et la phrase':'Hear the word and the sentence','La réponse était :':'The answer was:','Épeler :':'Spell:',
 'Déterminant':'Determiner','Préposition':'Preposition','Ta partie en cours sera quittée.':'You will leave your current game.','Fin de la manche.':'End of round.','· pour toute la salle':'· for the whole room',
 'question ajoutée':'question added','questions ajoutées':'questions added','éliminé·e':'out',
+'Ajoute tes propres questions':'Add your own questions','Prends une photo ou une capture de ta feuille : l\'IA trouve les réponses et prépare les choix.':'Take a photo or screenshot of your quiz sheet: AI finds the answers and writes the choices.','Ajouter mes questions':'Add my questions',
 'Dépose tes documents ici':'Drop your files here','Retour à la salle':'Back to the room','Duel':'Duel','Genia':'Genia',
 };
 const R=[

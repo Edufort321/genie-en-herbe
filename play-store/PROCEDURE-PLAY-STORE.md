@@ -11,11 +11,21 @@ Chemin habituel (comme Rouloo et Ohmni) : **Vercel → PWABuilder (.aab) → Pla
 
 ## ⚠️ À régler AVANT de publier
 
-1. **Droits sur les 91 questions de la feuille (© MPGHP 2020).** Elles sont protégées par le droit d'auteur. Pour un usage perso, aucun problème ; pour une app publique sur le Play Store, il faut **l'autorisation écrite de MPGHP**, sinon Google peut retirer l'app sur plainte. Option simple : publier une version sans ces questions (onglet Divers + questions perso) — Claude peut le faire avec un simple réglage.
+1. **Questions de la feuille (© MPGHP) : réglé.** Il y a maintenant deux éditions construites à partir du même code :
+   - **Famille** : le projet Vercel actuel `genie-en-herbe` (genie-en-herbe.vercel.app). Il garde les 91 questions pour Béatrice. Rien à changer.
+   - **Publique** : un **2e projet Vercel** importé du même dépôt GitHub, nommé `genia` (genia.vercel.app si libre). Il est construit sans les 91 questions. C'est **cette adresse** qu'on donne à PWABuilder et au Play Store.
+   - Le choix est automatique (le projet `genie-en-herbe` = famille, tout autre projet = publique). Pour forcer : variable `EDITION` = `famille` ou `public`.
 2. **Nom : réglé.** L'app s'appelle maintenant **Genia** (aucune app de quiz à ce nom trouvée en novembre 2026). Vérifie quand même la base des marques de l'OPIC avant de publier.
 3. **Public d'âge.** Les élèves de secondaire 1 ont 12 ans : il faut cocher la tranche 9-12 ans, ce qui applique le **programme Familles** de Google. L'app y est compatible (aucune pub, aucun suivi, politique de confidentialité), mais la vérification est plus stricte.
 
 ---
+
+## Étape 0 — Créer le projet Vercel public « genia » (5 min)
+1. vercel.com → **Add New… → Project** → importe le dépôt **Edufort321/genie-en-herbe** (le même).
+2. Nom du projet : **genia**. Ne change rien d'autre (les réglages viennent de `vercel.json`).
+3. **Environment Variables** : copie celles du projet actuel : `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `ANTHROPIC_API_KEY`, `IMPORT_CODE` (et rien pour `EDITION`).
+4. **Deploy**. Vérifie sur https://genia.vercel.app que l'onglet « Mes questions » affiche **0 questions** (= édition publique).
+5. Partout plus bas, remplace `genie-en-herbe.vercel.app` par **genia.vercel.app**.
 
 ## Étape 1 — Vérifier que le site est prêt (2 min)
 

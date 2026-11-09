@@ -50,7 +50,7 @@ const CULTURE=(EN?window.CULTURE_EN:window.CULTURE)||[];
 if(EN&&window.DIVERS_EN)DIVERS=window.DIVERS_EN;
 const SRC={mine:()=>EN?mine():[...SHEET,...mine()],divers:()=>DIVERS,culture:()=>CULTURE};
 const DIF=['','Facile','Moyen','Difficile'];
-let S=store.get('geh-prefs',{src:'mine',cats:{},lv:[1,2,3,4,5],len:20,timer:true});
+let S=store.get('geh-prefs',{src:SHEET.length&&!EN?'mine':'culture',cats:{},lv:[1,2,3,4,5],len:20,timer:true});
 if(!SRC[S.src])S.src='mine';if(!S.dif)S.dif=[1,2,3];
 const save=()=>store.set('geh-prefs',S);
 const catsOf=src=>[...new Set(SRC[src]().map(q=>q.c))];
@@ -78,7 +78,7 @@ function home(){
   <div class="tabs">${tab('mine','Mes questions',(EN?0:SHEET.length)+mine().length)}${tab('culture','Culture G',CULTURE.length)}${tab('divers','Divers',DIVERS.length)}</div>
   ${S.src==='culture'?fold('dif','Difficulté',S.dif.length===3?'Tous les niveaux':S.dif.map(l=>DIF[l]).join(', '),`<div class="chips">${[1,2,3].map(l=>`<button class="chip gold ${S.dif.includes(l)?'on':''}" data-dif="${l}">${DIF[l]} <small>${CULTURE.filter(q=>q.lvl===l).length}</small></button>`).join('')}</div>`):''}
   ${S.src==='divers'?fold('lv','Niveau',S.lv.length===5?'Sec 1 à 5':S.lv.map(l=>'Sec '+l).join(', '),`<div class="chips">${[1,2,3,4,5].map(l=>`<button class="chip gold ${S.lv.includes(l)?'on':''}" data-lv="${l}">Sec ${l}</button>`).join('')}</div>`):''}
-  ${false?`<div class="drop" id="drop0"><h3>Aucun document pour l'instant</h3><p>Glisse des photos de feuilles de questions, ou un fichier .txt / .csv / .json.</p><div class="row" style="justify-content:center"><button class="btn gold" data-go="import">Ajouter des documents</button></div></div>`:`
+  ${S.src==='mine'&&!SRC.mine().length?`<div class="drop" id="drop0"><h3>Ajoute tes propres questions</h3><p>Prends une photo ou une capture de ta feuille : l'IA trouve les réponses et prépare les choix.</p><div class="row" style="justify-content:center"><button class="btn gold" data-go="import">Ajouter mes questions</button></div></div>`:`
   ${fold('cat','Catégories',off.length?`${cats.length-off.length} sur ${cats.length}`:'Toutes',`<div class="chips"><button class="chip ${off.length?'':'on'}" data-all>Toutes</button>${cats.map(c=>`<button class="chip ${off.includes(c)?'':'on'}" data-cat="${esc(c)}">${esc(c)}</button>`).join('')}</div>`)}
   ${fold('opt','Réglages',`${qcm()?'Choix multiples':'Réponse écrite'} · ${S.len||'Toutes les'} q.`,`<div class="opts"><div class="seg"><button data-act="qcm" class="${qcm()?'on':''}">Choix multiples</button><button data-act="qcm" class="${qcm()?'':'on'}">Réponse écrite</button></div></div><div class="lbl">Langue</div><div class="opts"><div class="seg"><button data-act="lang" data-l="fr" class="${EN?'':'on'}">Français</button><button data-act="lang" data-l="en" class="${EN?'on':''}">English</button></div></div><div class="lbl">Lecture à voix haute</div><div class="opts"><div class="seg">${[[0,'Muette'],[1,'Lente'],[1.3,'Normale'],[1.6,'Rapide']].map(([v,t])=>`<button data-act="orate" data-r="${v}" class="${rate()===v?'on':''}">${t}</button>`).join('')}</div></div><div class="lbl">Examen</div><div class="opts"><div class="seg">${[10,20,30,0].map(l=>`<button data-len="${l}" class="${S.len===l?'on':''}">${l||'Tout'}</button>`).join('')}</div>
     </div><div class="lbl">Chrono de l'examen</div><div class="opts"><div class="seg">${[0,10,20,30,45].map(t=>`<button data-act="etime" data-t="${t}" class="${(S.timer?(S.etime||30):0)===t?'on':''}">${t?t+' s':'Aucun'}</button>`).join('')}</div></div>
