@@ -1,4 +1,4 @@
-// Génie en herbe : bilingue FR/EN. L'app est écrite en français ; en anglais, les textes affichés
+// Genia : bilingue FR/EN. L'app est écrite en français ; en anglais, les textes affichés
 // et lus à voix haute sont traduits ici (dictionnaire exact + règles pour les textes variables).
 (function(){
 let lang;try{lang=localStorage.getItem('geh-lang')}catch(e){}
@@ -89,7 +89,7 @@ const D={
 'Égalité au premier rang !':'Tie for first place!','Ça commence…':'Here we go…','C\'est parti !':'Let\'s go!',
 'M\'attendre':'Wait for me','✓ Il sait que tu attends':'✓ They know you\'re waiting','Ils t\'attendent :':'They\'re waiting for you:',
 'Prêt':'Ready','en partie':'in a game','L\'hôte':'The host','Ton ami':'Your friend','Toi':'You','Réaction':'Reaction','Actualiser':'Refresh',
-'Bien joué !':'Nice one!','Bonne chance !':'Good luck!','On lâche pas !':'Keep it up!','Trop fort !':'Too good!','GG !':'GG!','Défie-moi à Génie en herbe !':'Challenge me at Génie en herbe!',
+'Bien joué !':'Nice one!','Bonne chance !':'Good luck!','On lâche pas !':'Keep it up!','Trop fort !':'Too good!','GG !':'GG!','Défie-moi à Genia !':'Challenge me at Genia!',
 'Aucune':'None','librairie Supabase non chargée':'Supabase library not loaded','élimination par manches':'elimination rounds','pour toute la salle':'for the whole room',
 'gagnés ·':'won ·','duels de vitesse':'speed duels','même clic':'same tap','plus vite ·':'faster ·','moins vite':'slower',
 // import
@@ -112,7 +112,7 @@ const D={
 'Recommencer':'Start over','Relancer le micro':'Restart the mic','Revanche':'Rematch','Écouter le mot et la phrase':'Hear the word and the sentence','La réponse était :':'The answer was:','Épeler :':'Spell:',
 'Déterminant':'Determiner','Préposition':'Preposition','Ta partie en cours sera quittée.':'You will leave your current game.','Fin de la manche.':'End of round.','· pour toute la salle':'· for the whole room',
 'question ajoutée':'question added','questions ajoutées':'questions added','éliminé·e':'out',
-'Dépose tes documents ici':'Drop your files here','Retour à la salle':'Back to the room','Duel':'Duel','Génie en herbe':'Génie en herbe',
+'Dépose tes documents ici':'Drop your files here','Retour à la salle':'Back to the room','Duel':'Duel','Genia':'Genia',
 };
 const R=[
 [/^Meilleur examen ici : (.+)$/,'Best exam here: $1'],[/^Non\. Réplique pour$/,'No. Comeback for'],[/^Bonne réponse ! (.+)$/,'Correct! $1'],[/^Bravo ! (.+)$/,'Well done! $1'],[/^(.+) a le point\. (.+)$/,'$1 gets the point. $2'],[/^Duel ! (.+) contre (.+)\. Prêts \?$/,'Duel! $1 versus $2. Ready?'],
@@ -167,5 +167,5 @@ function skip(n){const e=n.nodeType===1?n:n.parentElement;return e&&e.closest&&e
 const mo=new MutationObserver(ms=>{for(const m of ms){if(m.type==='characterData'){if(!skip(m.target))node(m.target)}else if(m.type==='attributes'){if(!skip(m.target))node(m.target)}else m.addedNodes.forEach(x=>{if(!skip(x))node(x)})}});
 const go=()=>{node(document.body);mo.observe(document.body,{subtree:true,childList:true,characterData:true,attributes:true,attributeFilter:ATTR})};
 if(document.body)go();else document.addEventListener('DOMContentLoaded',go);
-document.title='Génie en herbe · Quiz';
+document.title='Genia · Quiz';
 })();

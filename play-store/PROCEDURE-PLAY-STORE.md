@@ -1,9 +1,9 @@
-# Génie en herbe — Procédure de dépôt sur le Play Store
+# Genia — Procédure de dépôt sur le Play Store
 
 Chemin habituel (comme Rouloo et Ohmni) : **Vercel → PWABuilder (.aab) → Play Console**, compte organisation **Commerce Cerdia inc.**
 
 - Site : https://genie-en-herbe.vercel.app
-- Package ID : `com.cerdia.genieenherbe`
+- Package ID : `com.cerdia.genia`
 - Politique de confidentialité : https://genie-en-herbe.vercel.app/confidentialite.html
 - Fichiers de la fiche (icône, bannière, captures) : dossier `play-store/` du dépôt
 
@@ -12,7 +12,7 @@ Chemin habituel (comme Rouloo et Ohmni) : **Vercel → PWABuilder (.aab) → Pla
 ## ⚠️ À régler AVANT de publier
 
 1. **Droits sur les 91 questions de la feuille (© MPGHP 2020).** Elles sont protégées par le droit d'auteur. Pour un usage perso, aucun problème ; pour une app publique sur le Play Store, il faut **l'autorisation écrite de MPGHP**, sinon Google peut retirer l'app sur plainte. Option simple : publier une version sans ces questions (onglet Divers + questions perso) — Claude peut le faire avec un simple réglage.
-2. **Le nom « Génie en herbe ».** « Génies en herbe » est le nom bien connu de l'émission et des compétitions scolaires. Un nom proche peut être refusé ou contesté. À vérifier (registre des marques de l'OPIC) ou choisir un nom distinct (ex. « Génie Quiz », « Cerveau d'or », « Brainzo »).
+2. **Nom : réglé.** L'app s'appelle maintenant **Genia** (aucune app de quiz à ce nom trouvée en novembre 2026). Vérifie quand même la base des marques de l'OPIC avant de publier.
 3. **Public d'âge.** Les élèves de secondaire 1 ont 12 ans : il faut cocher la tranche 9-12 ans, ce qui applique le **programme Familles** de Google. L'app y est compatible (aucune pub, aucun suivi, politique de confidentialité), mais la vérification est plus stricte.
 
 ---
@@ -32,9 +32,9 @@ Ouvre ces liens dans Chrome, ils doivent tous s'afficher :
 3. Remplis :
    | Champ | Valeur |
    |---|---|
-   | Package ID | `com.cerdia.genieenherbe` |
-   | App name | Génie en herbe |
-   | Launcher name | Génie en herbe |
+   | Package ID | `com.cerdia.genia` |
+   | App name | Genia |
+   | Launcher name | Genia |
    | App version | 1.0.0 |
    | App version code | 1 |
    | Host / Start URL | genie-en-herbe.vercel.app / `/` |
@@ -51,7 +51,7 @@ Ouvre ces liens dans Chrome, ils doivent tous s'afficher :
 ## Étape 3 — Créer l'app dans Play Console (5 min)
 
 play.google.com/console (compte play.commercecerdia@gmail.com) → **Créer une application** :
-- Nom : Génie en herbe (ou le nom retenu)
+- Nom : Genia
 - Langue par défaut : **Français (Canada) – fr-CA**
 - Type : **Application** · Catégorie (à l'étape 5) : **Éducation**
 - **Gratuite**
@@ -88,7 +88,7 @@ L'app est bilingue : elle s'ouvre dans la langue du téléphone et on change de 
 Dans Play Console : Croissance → Présence sur le Play Store → Fiche principale. Langue par défaut : **Français (Canada) – fr-CA**. Ensuite, **Gérer les traductions → Ajouter vos propres traductions → Anglais (États-Unis) – en-US** (et Anglais (Canada) si tu veux), puis colle la version anglaise.
 
 ### Français (fr-CA)
-- **Nom (30 car. max)** : Génie en herbe – Révision
+- **Nom (30 car. max)** : Genia – Quiz et culture G
 - **Description courte (80 car. max)** :
   `Près de 500 questions de culture générale, examens et défis en ligne.`
 - **Description complète** :
@@ -96,7 +96,7 @@ Dans Play Console : Croissance → Présence sur le Play Store → Fiche princip
 ```
 Deviens imbattable au quiz !
 
-Génie en herbe t'aide à réviser la culture générale du secondaire de façon rapide et motivante. Application bilingue français et anglais.
+Genia t'aide à réviser la culture générale du secondaire de façon rapide et motivante. Application bilingue français et anglais.
 
 CULTURE GÉNÉRALE
 • Près de 500 questions originales en 14 catégories : Québec et Canada, sciences, histoire, géographie, sports, musique, arts, cinéma, langue, technologies et plus
@@ -129,7 +129,7 @@ Sans publicité, sans compte, sans achat. Ton profil reste sur ton téléphone.
 ```
 
 ### English (en-US)
-- **Title (30 chars max)**: Génie en herbe – Quiz Study
+- **Title (30 chars max)**: Genia – Trivia & Quiz
 - **Short description (80 chars max)**:
   `Nearly 500 general knowledge questions, exams and online challenges.`
 - **Full description**:
@@ -137,7 +137,7 @@ Sans publicité, sans compte, sans achat. Ton profil reste sur ton téléphone.
 ```
 Become unbeatable at quiz games!
 
-Génie en herbe helps you study general knowledge in a fast and motivating way. The app is bilingual, English and French.
+Genia helps you study general knowledge in a fast and motivating way. The app is bilingual, English and French.
 
 GENERAL KNOWLEDGE
 • Nearly 500 original questions in 14 categories: Canada and Québec, science, history, geography, sports, music, arts, movies, language, technology and more
@@ -171,7 +171,7 @@ No ads, no account, no purchases. Your profile stays on your phone.
 
 ### Images
 - **Icône 512×512** : `play-store/icone-play-512.png` (même icône pour les deux langues)
-- **Image de présentation 1024×500** : `play-store/banniere-1024x500.png`
+- **Image de présentation 1024×500** : `play-store/banniere-1024x500.png` (français) et `play-store/en/banniere-1024x500.png` (anglais)
 - **Captures en français** : `play-store/capture-1-accueil.png` à `capture-6-en-ligne.png` (et `capture-0-ouverture.png` si tu veux)
 - **Captures en anglais** (dans la traduction en-US) : les mêmes noms dans `play-store/en/`
 - Les captures montrent seulement les questions de Culture générale (aucune question des feuilles MPGHP).

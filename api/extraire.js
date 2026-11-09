@@ -3,7 +3,7 @@
 // Variables d'environnement : ANTHROPIC_API_KEY (obligatoire), IMPORT_CODE (facultatif : code d'accès),
 // ANTHROPIC_MODEL (facultatif, par défaut claude-sonnet-5-5).
 
-const CONSIGNE = `Tu reçois des photos ou captures d'écran de feuilles de questions de quiz (style Génie en herbe), en français ou en anglais.
+const CONSIGNE = `Tu reçois des photos ou captures d'écran de feuilles de questions de quiz (style compétition de quiz scolaire), en français ou en anglais.
 Extrais CHAQUE question visible et renvoie UNIQUEMENT un tableau JSON, sans texte autour, de la forme :
 [{"c":"Catégorie courte","lvl":1,"q":"Question complète ?","a":"Réponse","k":["motcle"],"d":["faux 1","faux 2","faux 3"]}]
 

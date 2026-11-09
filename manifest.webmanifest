@@ -1,8 +1,8 @@
 {
   "id": "/",
-  "name": "Génie en herbe",
-  "short_name": "Génie en herbe",
-  "description": "Révise les questions de Génie en herbe du secondaire, passe des examens et affronte tes amis en duel ou en ligne.",
+  "name": "Genia – Quiz et culture G",
+  "short_name": "Genia",
+  "description": "Quiz de culture générale bilingue : révise, passe des examens et affronte tes amis en duel ou en ligne.",
   "lang": "fr-CA",
   "dir": "ltr",
   "start_url": "/",

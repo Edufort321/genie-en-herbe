@@ -73,7 +73,7 @@ function home(){
   const cats=catsOf(S.src),off=S.cats[S.src]||[],n=pool().length,best=store.get('geh-best',{})[S.src];
   const tab=(k,t,c)=>`<button data-src="${k}" class="${S.src===k?'on':''}">${t}<small>${c} questions</small></button>`;
   app.innerHTML=`
-  <div class="hero"><img src="icon-192.webp" alt="Logo Génie en herbe"><div><h1>Génie en herbe</h1><p>${P?['Salut '+esc(P.nom),esc(P.ecole)].filter(Boolean).join(' · '):'Révise, teste-toi, deviens imbattable.'}</p></div>${P?`<button class="me ${P.av?'hasav':''}" data-act="profil" aria-label="Mon profil">${P.av?avImg(P.av,'meav'):esc(P.nom.trim()[0]||'?').toUpperCase()}</button>`:''}</div>
+  <div class="hero"><img src="icon-192.webp" alt="Logo Genia"><div><h1>Genia</h1><p>${P?['Salut '+esc(P.nom),esc(P.ecole)].filter(Boolean).join(' · '):'Révise, teste-toi, deviens imbattable.'}</p></div>${P?`<button class="me ${P.av?'hasav':''}" data-act="profil" aria-label="Mon profil">${P.av?avImg(P.av,'meav'):esc(P.nom.trim()[0]||'?').toUpperCase()}</button>`:''}</div>
   <button class="pill" id="pill" data-go="online" style="display:none"></button>
   <div class="tabs">${tab('mine','Mes questions',(EN?0:SHEET.length)+mine().length)}${tab('culture','Culture G',CULTURE.length)}${tab('divers','Divers',DIVERS.length)}</div>
   ${S.src==='culture'?fold('dif','Difficulté',S.dif.length===3?'Tous les niveaux':S.dif.map(l=>DIF[l]).join(', '),`<div class="chips">${[1,2,3].map(l=>`<button class="chip gold ${S.dif.includes(l)?'on':''}" data-dif="${l}">${DIF[l]} <small>${CULTURE.filter(q=>q.lvl===l).length}</small></button>`).join('')}</div>`):''}
@@ -452,7 +452,7 @@ function avPopup(){
 }
 function afterProfile(){if(pendingRoom){const c=pendingRoom;pendingRoom='';app.innerHTML='<div class="onb" style="padding-top:30vh"><div id="ost" class="note">Connexion à la salle '+esc(c)+'…</div></div>';enterRoom(c)}else home()}
 function boot(){
-  app.innerHTML=`<div class="splash"><img src="icon-192.webp" alt=""><h1>Génie en herbe</h1></div>`;
+  app.innerHTML=`<div class="splash"><img src="icon-192.webp" alt=""><h1>Genia</h1></div>`;
   setTimeout(()=>{const sp=$('.splash');if(sp)sp.classList.add('out');setTimeout(()=>{P?afterProfile():profil();setTimeout(avPopup,600)},350)},1900);
   if(P&&!pendingRoom&&S.room&&S.stay&&(window.GEH_CONFIG||{}).supabaseUrl)setTimeout(()=>enterRoom(S.room,true),2400);
 }
@@ -950,8 +950,8 @@ Object.assign(ACT,{
       leaveRoom();S.stay=false;if(v!=='keep')S.room='';save();if(v==='new')enterRoom(newCode());else onlineScreen()});
     document.body.appendChild(box)},
   oforget(){S.room='';S.stay=false;save();onlineScreen()},
-  oshare(){const url=`${location.origin}/s/${ROOM}`,text=LANG==='en'?`Come play Génie en herbe with me! Room ${ROOM}`:`Viens jouer avec moi à Génie en herbe ! Salle ${ROOM}`;
-    if(navigator.share)navigator.share({title:T('Défie-moi à Génie en herbe !'),url}).catch(()=>{});else navigator.clipboard?.writeText(text+'\n'+url).then(()=>oStatus('Lien copié !'),()=>{})},
+  oshare(){const url=`${location.origin}/s/${ROOM}`,text=LANG==='en'?`Come play Genia with me! Room ${ROOM}`:`Viens jouer avec moi à Genia ! Salle ${ROOM}`;
+    if(navigator.share)navigator.share({title:T('Défie-moi à Genia !'),url}).catch(()=>{});else navigator.clipboard?.writeText(text+'\n'+url).then(()=>oStatus('Lien copié !'),()=>{})},
   olen(b){S.olen=+b.dataset.l;save();roomRender(true)},
   ofmt(b){S.ofmt=b.dataset.f;save();roomRender(true)},
   odur(b){S.odurs=S.odurs||{};S.odurs[S.ofmt||'classic']=+b.dataset.t;save();roomRender(true)},
