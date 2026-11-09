@@ -78,25 +78,34 @@ play.google.com/console (compte play.commercecerdia@gmail.com) → **Créer une 
 - Moyen de demander la suppression des données ? **Non applicable** : rien n'est conservé sur nos serveurs. Si le champ est obligatoire, indique play@cerdia.ai.
 - Données collectées :
   - **Informations personnelles → Nom** (prénom en mode en ligne) : *collectée*, **non partagée**, **traitée de façon éphémère**, **facultative**, finalité **Fonctionnement de l'application**.
+  - **Photos et vidéos → Photos** (remplissage IA seulement, quand l'utilisateur choisit des captures) : *collectée*, **non partagée** (Anthropic agit comme fournisseur de services), **traitée de façon éphémère**, **facultative**, finalité **Fonctionnement de l'application**.
   - Rien d'autre. Le profil (âge, école), les scores et les questions perso restent sur l'appareil. Ce qui ne quitte pas l'appareil n'est pas considéré comme collecté.
 - Audio : l'app ne collecte pas l'audio, c'est le service vocal du système qui transcrit. Ne pas déclarer d'enregistrement audio, mais garder la mention dans la politique (déjà faite).
 
-## Étape 5 — Fiche du Play Store (Croissance → Présence sur le Play Store → Fiche principale)
+## Étape 5 — Fiche du Play Store, en français ET en anglais
 
+L'app est bilingue : elle s'ouvre dans la langue du téléphone et on change de langue dans le profil ou dans Réglages.
+Dans Play Console : Croissance → Présence sur le Play Store → Fiche principale. Langue par défaut : **Français (Canada) – fr-CA**. Ensuite, **Gérer les traductions → Ajouter vos propres traductions → Anglais (États-Unis) – en-US** (et Anglais (Canada) si tu veux), puis colle la version anglaise.
+
+### Français (fr-CA)
 - **Nom (30 car. max)** : Génie en herbe – Révision
 - **Description courte (80 car. max)** :
-  `Révise le quiz du secondaire, passe des examens et défie tes amis en ligne.`
+  `Près de 500 questions de culture générale, examens et défis en ligne.`
 - **Description complète** :
 
 ```
-Deviens imbattable au Génie en herbe !
+Deviens imbattable au quiz !
 
-Génie en herbe t'aide à réviser les questions de quiz du secondaire, de la 1re à la 5e secondaire, de façon rapide et motivante.
+Génie en herbe t'aide à réviser la culture générale du secondaire de façon rapide et motivante. Application bilingue français et anglais.
 
-RÉVISION
-• Questions en ordre aléatoire, avec 4 choix de réponses crédibles
+CULTURE GÉNÉRALE
+• Près de 500 questions originales en 14 catégories : Québec et Canada, sciences, histoire, géographie, sports, musique, arts, cinéma, langue, technologies et plus
+• 3 niveaux : facile, moyen, difficile
+• 4 choix de réponses crédibles pour chaque question
+
+RÉVISION INTELLIGENTE
 • Les questions ratées reviennent jusqu'à ce que tu les maîtrises
-• Questions à indices (15-10-5 points), questions d'épellation lues à voix haute
+• Statistiques par catégorie et liste de tes questions les plus difficiles
 
 EXAMEN
 • 10, 20, 30 questions ou toutes, avec chronomètre
@@ -104,26 +113,68 @@ EXAMEN
 
 DUEL À 2 SUR LE MÊME TÉLÉPHONE
 • Téléphone à plat entre vous deux, chacun son côté de l'écran
-• La question est lue à voix haute, le plus rapide gagne
+• Question lue à voix haute, le plus rapide gagne
 • Réponse au micro ou par choix, avec droit de réplique
 
 EN LIGNE AVEC TES AMIS
 • Salle privée avec un code : seuls tes amis te voient
-• Parties de groupe sans limite de joueurs et scores en direct
-• Une mauvaise réponse ne ferme pas la question : les autres peuvent encore répondre
+• Parties classiques, blitz, tournoi à élimination et révision de groupe
+• Scores en direct et temps de réponse
 • Réactions emoji et petites phrases d'encouragement (aucun clavardage libre)
-• Alerte quand un ami arrive dans la salle
 
 TES PROPRES QUESTIONS
-• Photographie tes feuilles ou tes notes de classe pour réviser dessus
+• Prends une photo ou une capture de ta feuille : l'IA lit les questions, trouve les réponses et prépare les choix. Tu vérifies avant d'ajouter.
 
-Sans publicité, sans compte, sans collecte de données : ton profil reste sur ton téléphone.
-Catégories : géographie, sciences, histoire, arts, musique, sports, littérature, langue française, mathématiques, divertissement et plus.
+Sans publicité, sans compte, sans achat. Ton profil reste sur ton téléphone.
 ```
 
-- **Icône 512×512** : `play-store/icone-play-512.png`
+### English (en-US)
+- **Title (30 chars max)**: Génie en herbe – Quiz Study
+- **Short description (80 chars max)**:
+  `Nearly 500 general knowledge questions, exams and online challenges.`
+- **Full description**:
+
+```
+Become unbeatable at quiz games!
+
+Génie en herbe helps you study general knowledge in a fast and motivating way. The app is bilingual, English and French.
+
+GENERAL KNOWLEDGE
+• Nearly 500 original questions in 14 categories: Canada and Québec, science, history, geography, sports, music, arts, movies, language, technology and more
+• 3 levels: easy, medium, hard
+• 4 believable answer choices for every question
+
+SMART REVIEW
+• Missed questions come back until you master them
+• Stats by category and a list of your hardest questions
+
+EXAM
+• 10, 20, 30 or all questions, with a timer
+• Scored like a real match, then review your mistakes
+
+2-PLAYER DUEL ON ONE PHONE
+• Lay the phone flat between you, each player gets a side of the screen
+• Questions are read aloud, the fastest player wins
+• Answer by voice or by choices, with a comeback chance
+
+ONLINE WITH FRIENDS
+• Private room with a code: only your friends can see you
+• Classic, blitz, elimination tournament and group review games
+• Live scores and answer times
+• Emoji reactions and short cheers (no free chat)
+
+YOUR OWN QUESTIONS
+• Take a photo or screenshot of your quiz sheet: AI reads the questions, finds the answers and writes the choices. You check before adding.
+
+No ads, no account, no purchases. Your profile stays on your phone.
+```
+
+### Images
+- **Icône 512×512** : `play-store/icone-play-512.png` (même icône pour les deux langues)
 - **Image de présentation 1024×500** : `play-store/banniere-1024x500.png`
-- **Captures du téléphone** (2 à 8) : `play-store/capture-1-accueil.png`, `capture-2-revision.png`, `capture-3-examen.png`, `capture-4-duel.png`, `capture-5-salle.png`, `capture-6-en-ligne.png` (et `capture-0-ouverture.png` si tu veux)
+- **Captures en français** : `play-store/capture-1-accueil.png` à `capture-6-en-ligne.png` (et `capture-0-ouverture.png` si tu veux)
+- **Captures en anglais** (dans la traduction en-US) : les mêmes noms dans `play-store/en/`
+- Les captures montrent seulement les questions de Culture générale (aucune question des feuilles MPGHP).
 - **Catégorie** : Éducation · **Tags** : Quiz, Éducation, Révision
 - **Coordonnées** : courriel play@cerdia.ai · site https://cerdia.ai
 

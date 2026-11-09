@@ -45,8 +45,10 @@ const blank=q=>esc(q.s).replace(new RegExp(q.spell,'i'),'<b style="color:var(--g
 
 // ---------- banques ----------
 const mine=()=>store.get('geh-mine',[]);
-const CULTURE=window.CULTURE||[];
-const SRC={mine:()=>[...SHEET,...mine()],divers:()=>DIVERS,culture:()=>CULTURE};
+const EN=LANG==='en',SRL=EN?['en-CA','en-US']:['fr-CA','fr-FR'];
+const CULTURE=(EN?window.CULTURE_EN:window.CULTURE)||[];
+if(EN&&window.DIVERS_EN)DIVERS=window.DIVERS_EN;
+const SRC={mine:()=>EN?mine():[...SHEET,...mine()],divers:()=>DIVERS,culture:()=>CULTURE};
 const DIF=['','Facile','Moyen','Difficile'];
 let S=store.get('geh-prefs',{src:'mine',cats:{},lv:[1,2,3,4,5],len:20,timer:true});
 if(!SRC[S.src])S.src='mine';if(!S.dif)S.dif=[1,2,3];
@@ -73,12 +75,12 @@ function home(){
   app.innerHTML=`
   <div class="hero"><img src="icon-192.webp" alt="Logo Génie en herbe"><div><h1>Génie en herbe</h1><p>${P?['Salut '+esc(P.nom),esc(P.ecole)].filter(Boolean).join(' · '):'Révise, teste-toi, deviens imbattable.'}</p></div>${P?`<button class="me ${P.av?'hasav':''}" data-act="profil" aria-label="Mon profil">${P.av?avImg(P.av,'meav'):esc(P.nom.trim()[0]||'?').toUpperCase()}</button>`:''}</div>
   <button class="pill" id="pill" data-go="online" style="display:none"></button>
-  <div class="tabs">${tab('mine','Mes questions',SHEET.length+mine().length)}${tab('culture','Culture G',CULTURE.length)}${tab('divers','Divers',DIVERS.length)}</div>
+  <div class="tabs">${tab('mine','Mes questions',(EN?0:SHEET.length)+mine().length)}${tab('culture','Culture G',CULTURE.length)}${tab('divers','Divers',DIVERS.length)}</div>
   ${S.src==='culture'?fold('dif','Difficulté',S.dif.length===3?'Tous les niveaux':S.dif.map(l=>DIF[l]).join(', '),`<div class="chips">${[1,2,3].map(l=>`<button class="chip gold ${S.dif.includes(l)?'on':''}" data-dif="${l}">${DIF[l]} <small>${CULTURE.filter(q=>q.lvl===l).length}</small></button>`).join('')}</div>`):''}
   ${S.src==='divers'?fold('lv','Niveau',S.lv.length===5?'Sec 1 à 5':S.lv.map(l=>'Sec '+l).join(', '),`<div class="chips">${[1,2,3,4,5].map(l=>`<button class="chip gold ${S.lv.includes(l)?'on':''}" data-lv="${l}">Sec ${l}</button>`).join('')}</div>`):''}
   ${false?`<div class="drop" id="drop0"><h3>Aucun document pour l'instant</h3><p>Glisse des photos de feuilles de questions, ou un fichier .txt / .csv / .json.</p><div class="row" style="justify-content:center"><button class="btn gold" data-go="import">Ajouter des documents</button></div></div>`:`
   ${fold('cat','Catégories',off.length?`${cats.length-off.length} sur ${cats.length}`:'Toutes',`<div class="chips"><button class="chip ${off.length?'':'on'}" data-all>Toutes</button>${cats.map(c=>`<button class="chip ${off.includes(c)?'':'on'}" data-cat="${esc(c)}">${esc(c)}</button>`).join('')}</div>`)}
-  ${fold('opt','Réglages',`${qcm()?'Choix multiples':'Réponse écrite'} · ${S.len||'Toutes les'} q.`,`<div class="opts"><div class="seg"><button data-act="qcm" class="${qcm()?'on':''}">Choix multiples</button><button data-act="qcm" class="${qcm()?'':'on'}">Réponse écrite</button></div></div><div class="lbl">Lecture à voix haute</div><div class="opts"><div class="seg">${[[0,'Muette'],[1,'Lente'],[1.3,'Normale'],[1.6,'Rapide']].map(([v,t])=>`<button data-act="orate" data-r="${v}" class="${rate()===v?'on':''}">${t}</button>`).join('')}</div></div><div class="lbl">Examen</div><div class="opts"><div class="seg">${[10,20,30,0].map(l=>`<button data-len="${l}" class="${S.len===l?'on':''}">${l||'Tout'}</button>`).join('')}</div>
+  ${fold('opt','Réglages',`${qcm()?'Choix multiples':'Réponse écrite'} · ${S.len||'Toutes les'} q.`,`<div class="opts"><div class="seg"><button data-act="qcm" class="${qcm()?'on':''}">Choix multiples</button><button data-act="qcm" class="${qcm()?'':'on'}">Réponse écrite</button></div></div><div class="lbl">Langue</div><div class="opts"><div class="seg"><button data-act="lang" data-l="fr" class="${EN?'':'on'}">Français</button><button data-act="lang" data-l="en" class="${EN?'on':''}">English</button></div></div><div class="lbl">Lecture à voix haute</div><div class="opts"><div class="seg">${[[0,'Muette'],[1,'Lente'],[1.3,'Normale'],[1.6,'Rapide']].map(([v,t])=>`<button data-act="orate" data-r="${v}" class="${rate()===v?'on':''}">${t}</button>`).join('')}</div></div><div class="lbl">Examen</div><div class="opts"><div class="seg">${[10,20,30,0].map(l=>`<button data-len="${l}" class="${S.len===l?'on':''}">${l||'Tout'}</button>`).join('')}</div>
     </div><div class="lbl">Chrono de l'examen</div><div class="opts"><div class="seg">${[0,10,20,30,45].map(t=>`<button data-act="etime" data-t="${t}" class="${(S.timer?(S.etime||30):0)===t?'on':''}">${t?t+' s':'Aucun'}</button>`).join('')}</div></div>
     <div class="lbl">Révision intelligente</div><div class="opts" style="flex-direction:column;align-items:flex-start">
     <button class="tog" data-act="tsmart"><span class="sw ${S.smart!==false?'on':''}"></span>Les questions les moins réussies d'abord</button>
@@ -306,7 +308,7 @@ function shrink(file){return new Promise((res,rej)=>{const img=new Image(),u=URL
   img.onerror=()=>rej(new Error('image illisible'));img.src=u})}
 let aiLast=null;
 async function aiCall(payload){
-  const r=await fetch('/api/extraire',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({...payload,code:S.aiCode||''})});
+  const r=await fetch('/api/extraire',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({...payload,lang:LANG,code:S.aiCode||''})});
   let j={};try{j=await r.json()}catch(e){}
   if(r.status===401&&j.needCode){aiLast=payload;$('#aicode').style.display='';throw new Error('Entre le code d\'accès à l\'IA, puis touche OK.')}
   if(!r.ok)throw new Error(j.error||('erreur '+r.status));
@@ -377,6 +379,7 @@ async function handleFiles(files){
   $('#ed').style.display='';$('#txt').value=pending;
 }
 Object.assign(ACT,{
+  lang(b){if((b.dataset.l==='en')!==EN)setLang(b.dataset.l)},
   aitext(){const t=$('#aitxt').value.trim();if(t)aiRun([{texte:t}])},
   aicode(){S.aiCode=$('#aicodein').value.trim();save();$('#aicode').style.display='none';if(aiLast)aiRun([aiLast])},
   aitog(b){const q=AIQ[+b.dataset.i];q.keep=!q.keep;aiRender()},
@@ -394,7 +397,7 @@ Object.assign(ACT,{
     importScreen();$('#stat').textContent=add.length+' questions ajoutées.';
   },
   export(){const b=new Blob([JSON.stringify(mine(),null,1)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='genie-en-herbe-mes-questions.json';a.click()},
-  wipe(){if(confirm('Effacer toutes tes questions importées ?')){store.set('geh-mine',[]);importScreen()}}
+  wipe(){if(confirm(T('Effacer toutes tes questions importées ?'))){store.set('geh-mine',[]);importScreen()}}
 });
 // glisser-déposer n'importe où
 let dc=0;const cover=$('#dragcover');
@@ -418,7 +421,7 @@ function profil(){
     <label>Âge<input class="in" id="pa" type="number" inputmode="numeric" min="8" max="20" value="${esc(P?.age||'')}" placeholder="12"></label>
     <label>École<input class="in" id="pe" maxlength="60" value="${esc(P?.ecole||'')}" placeholder="Nom de ton école"></label>
     <button class="btn pri go" id="pgo" type="submit">${P?'Enregistrer':'Go'}</button>
-  </form><small>Ces infos restent seulement sur ton appareil. <a href="confidentialite.html" style="color:var(--cyan)">Confidentialité</a></small>
+  </form><div class="seg" style="margin-top:14px;display:inline-flex"><button data-act="lang" data-l="fr" class="${EN?'':'on'}">Français</button><button data-act="lang" data-l="en" class="${EN?'on':''}">English</button></div><small>Ces infos restent seulement sur ton appareil. <a href="confidentialite.html${EN?'#en':''}" style="color:var(--cyan)">Confidentialité</a></small>
   ${P?`<div class="lbl" style="margin-top:22px;text-align:left">Mes questions perso</div>
   <button class="btn" style="width:100%" data-go="import">Mes questions perso (sur ce téléphone)${mine().length?' · '+mine().length:''}</button>
   <small>Photographie une feuille ou tes notes de classe pour réviser dessus. Elles restent seulement sur ce téléphone.</small>
@@ -461,8 +464,8 @@ function dClear(){dT.forEach(clearTimeout);dT=[];if(D)clearInterval(D.iv),clearI
 function beep(f=880,d=.15){try{actx=actx||new(window.AudioContext||window.webkitAudioContext)();const o=actx.createOscillator(),g=actx.createGain();o.type='square';o.frequency.value=f;g.gain.value=.07;o.connect(g);g.connect(actx.destination);o.start();o.stop(actx.currentTime+d)}catch(e){}}
 function say(t,cb){
   if(!('speechSynthesis' in window)||!rate()){cb&&setTimeout(cb,Math.min(6000,String(t).length*55));return}
-  speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(t),vs=speechSynthesis.getVoices();
-  const v=vs.find(v=>/fr[-_]CA/i.test(v.lang))||vs.find(v=>/^fr/i.test(v.lang));if(v)u.voice=v;u.lang='fr-CA';u.rate=rate();
+  speechSynthesis.cancel();t=T(String(t));const u=new SpeechSynthesisUtterance(t),vs=speechSynthesis.getVoices();
+  const L2=LANG==='en'&&!/[àâçéèêëîïôûù]/i.test(t)?'en':'fr',v=vs.find(v=>new RegExp('^'+L2+'[-_]CA','i').test(v.lang))||vs.find(v=>new RegExp('^'+L2,'i').test(v.lang));if(v)u.voice=v;u.lang=L2+'-CA';u.rate=rate();
   if(cb){let done=false;u.onend=u.onerror=()=>{if(!done){done=true;cb()}}}
   speechSynthesis.speak(u);
 }
@@ -535,7 +538,7 @@ function voiceRight(q,v){
 function dListen(k,lang){
   try{rec&&rec.abort()}catch(e){}
   let r;try{r=new SR()}catch(e){D.vocal=false;dRender();return}
-  rec=r;r.lang=lang||'fr-CA';r.interimResults=true;r.maxAlternatives=5;r.continuous=true;
+  rec=r;r.lang=lang||SRL[0];r.interimResults=true;r.maxAlternatives=5;r.continuous=true;
   const st=t=>{const h=$('#mst'+k);if(h)h.textContent=t};
   D.alts=D.alts||[];
   r.onaudiostart=()=>st('Micro ouvert, parle !');
@@ -548,7 +551,7 @@ function dListen(k,lang){
   };
   r.onerror=e=>{
     if(e.error==='not-allowed'||e.error==='service-not-allowed'){st('Micro refusé : on passe aux choix');later(()=>ACT.dchoix(),900);return}
-    if(e.error==='language-not-supported'&&r.lang!=='fr-FR'){dListen(k,'fr-FR');return}
+    if(e.error==='language-not-supported'&&r.lang!==SRL[1]){dListen(k,SRL[1]);return}
     if(e.error==='network'){st('Pas d\'internet pour la voix : on passe aux choix');later(()=>ACT.dchoix(),1200);return}
     st(e.error==='no-speech'?'Je n\'entends rien… parle plus fort':'Micro : '+e.error);
   };
@@ -833,11 +836,11 @@ function oListen(){
   const start=lang=>{let r;try{r=new SR()}catch(e){fin(false);return}rec=r;r.lang=lang;r.interimResults=true;r.maxAlternatives=5;r.continuous=true;
     r.onresult=e=>{for(let j=e.resultIndex;j<e.results.length;j++){const alts=[...e.results[j]].map(x=>x.transcript.trim()).filter(Boolean);if(!alts.length)continue;
       O.heard=alts[0];const h=$('#oheard');if(h)h.textContent='« '+O.heard+' »';if(alts.some(v=>voiceRight(q,v))){fin(true);return}}};
-    r.onerror=e=>{if(e.error==='language-not-supported'&&lang!=='fr-FR'){start('fr-FR');return}
+    r.onerror=e=>{if(e.error==='language-not-supported'&&lang!==SRL[1]){start(SRL[1]);return}
       if(['not-allowed','service-not-allowed','network'].includes(e.error)){S.omode='choix';save();const h=$('#oheard');if(h)h.textContent='Micro indisponible : choix A B C D à la prochaine question'}};
     r.onend=()=>{if(!done&&rec===r)setTimeout(()=>{if(!done&&rec===r)start(lang)},150)};
     try{r.start()}catch(e){}};
-  start('fr-CA');
+  start(SRL[0]);
 }
 function attOk(a){const q=O.deck[O.i];return a.ok!==undefined?!!a.ok:q.ch[a.v]===q.a}
 function hostAns(who,i,a){
@@ -947,8 +950,8 @@ Object.assign(ACT,{
       leaveRoom();S.stay=false;if(v!=='keep')S.room='';save();if(v==='new')enterRoom(newCode());else onlineScreen()});
     document.body.appendChild(box)},
   oforget(){S.room='';S.stay=false;save();onlineScreen()},
-  oshare(){const url=`${location.origin}/s/${ROOM}`,text=`Viens jouer avec moi à Génie en herbe ! Salle ${ROOM}`;
-    if(navigator.share)navigator.share({title:'Défie-moi à Génie en herbe !',url}).catch(()=>{});else navigator.clipboard?.writeText(text+'\n'+url).then(()=>oStatus('Lien copié !'),()=>{})},
+  oshare(){const url=`${location.origin}/s/${ROOM}`,text=LANG==='en'?`Come play Génie en herbe with me! Room ${ROOM}`:`Viens jouer avec moi à Génie en herbe ! Salle ${ROOM}`;
+    if(navigator.share)navigator.share({title:T('Défie-moi à Génie en herbe !'),url}).catch(()=>{});else navigator.clipboard?.writeText(text+'\n'+url).then(()=>oStatus('Lien copié !'),()=>{})},
   olen(b){S.olen=+b.dataset.l;save();roomRender(true)},
   ofmt(b){S.ofmt=b.dataset.f;save();roomRender(true)},
   odur(b){S.odurs=S.odurs||{};S.odurs[S.ofmt||'classic']=+b.dataset.t;save();roomRender(true)},

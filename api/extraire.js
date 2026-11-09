@@ -3,16 +3,17 @@
 // Variables d'environnement : ANTHROPIC_API_KEY (obligatoire), IMPORT_CODE (facultatif : code d'accès),
 // ANTHROPIC_MODEL (facultatif, par défaut claude-sonnet-5-5).
 
-const CONSIGNE = `Tu reçois des photos ou captures d'écran de feuilles de questions de quiz (style Génie en herbe), en français.
+const CONSIGNE = `Tu reçois des photos ou captures d'écran de feuilles de questions de quiz (style Génie en herbe), en français ou en anglais.
 Extrais CHAQUE question visible et renvoie UNIQUEMENT un tableau JSON, sans texte autour, de la forme :
 [{"c":"Catégorie courte","lvl":1,"q":"Question complète ?","a":"Réponse","k":["motcle"],"d":["faux 1","faux 2","faux 3"]}]
 
 Règles :
+- Langue : écris la question, la catégorie, la réponse et les mauvais choix dans la langue de la feuille (français ou anglais). S'il n'y a pas de feuille, utilise la langue du texte collé.
 - N'invente aucune question qui n'est pas sur l'image. Recopie fidèlement la question (corrige seulement les fautes de lecture évidentes).
 - Si la feuille donne la réponse (souvent après « R: »), utilise-la. Sinon, donne la bonne réponse seulement si tu en es certain ; sinon mets "a":"" .
 - Questions à indices (15-10-5 points, 40-30-20-10…) : réunis les indices dans une seule question, du plus difficile au plus facile.
-- Mots à épeler : question « Comment épelle-t-on le mot … ? » avec la phrase, réponse = le mot.
-- "c" : catégorie courte en français (ex. Géographie, Sciences, Histoire, Musique, Sports, Langue française). Reprends le titre de section de la feuille s'il y en a un.
+- Mots à épeler : question « Comment épelle-t-on le mot … ? » (en anglais : « How do you spell the word … ? ») avec la phrase, réponse = le mot.
+- "c" : catégorie courte (ex. Géographie, Sciences, Histoire, Musique, Sports, Langue française). Reprends le titre de section de la feuille s'il y en a un.
 - "lvl" : 1 facile, 2 moyen, 3 difficile (ton estimation pour un élève du secondaire).
 - "k" : 1 à 3 mots-clés pour reconnaître une réponse tapée : minuscules, sans accents, sans article (« Le Caire » -> ["caire"]). Deux éléments obligatoires : "bleu&rose".
 - "d" : exactement 3 mauvais choix CRÉDIBLES et du MÊME TYPE que la bonne réponse (un compositeur -> 3 compositeurs de la même époque ; une ville -> 3 villes de la même région ; une année -> 3 années proches). Jamais la bonne réponse ni un synonyme.`;
